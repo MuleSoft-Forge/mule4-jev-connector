@@ -69,7 +69,7 @@ public class OpenRouterConnectionProvider extends AbstractJevConnectionProvider 
     }
     SystemOneAdapter adapter = new SystemOneAdapter("openrouter", baseUrl, model, Capabilities.full(true), apiKey,
         headers, CostExtractor.OPENROUTER, RequestIdExtractor.header("x-request-id"), transport());
-    return new JevConnection(adapter, fallbackAdapters());
+    return connection(adapter);
   }
 
   @Override

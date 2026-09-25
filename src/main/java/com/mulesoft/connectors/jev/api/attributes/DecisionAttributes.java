@@ -30,6 +30,7 @@ public class DecisionAttributes implements Serializable {
   private final String stateHash;
   private final String providerRequestId;
   private final String rawResponse;
+  private final TraceEntry traceEntry;
 
   private DecisionAttributes(Builder b) {
     this.provider = b.provider;
@@ -47,6 +48,7 @@ public class DecisionAttributes implements Serializable {
     this.stateHash = b.stateHash;
     this.providerRequestId = b.providerRequestId;
     this.rawResponse = b.rawResponse;
+    this.traceEntry = b.traceEntry;
   }
 
   public static Builder builder() {
@@ -113,6 +115,11 @@ public class DecisionAttributes implements Serializable {
     return rawResponse;
   }
 
+  /** An append-ready audit record for this decision; see {@link TraceEntry}. Never {@code null}. */
+  public TraceEntry getTraceEntry() {
+    return traceEntry;
+  }
+
   /** Fluent builder; every field is optional and defaults to a benign value. */
   public static final class Builder {
 
@@ -131,6 +138,7 @@ public class DecisionAttributes implements Serializable {
     private String stateHash;
     private String providerRequestId;
     private String rawResponse;
+    private TraceEntry traceEntry;
 
     public Builder provider(String value) {
       this.provider = value;
@@ -204,6 +212,11 @@ public class DecisionAttributes implements Serializable {
 
     public Builder rawResponse(String value) {
       this.rawResponse = value;
+      return this;
+    }
+
+    public Builder traceEntry(TraceEntry value) {
+      this.traceEntry = value;
       return this;
     }
 

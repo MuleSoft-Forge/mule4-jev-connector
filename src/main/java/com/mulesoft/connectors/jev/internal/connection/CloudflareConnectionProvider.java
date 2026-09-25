@@ -52,7 +52,7 @@ public class CloudflareConnectionProvider extends AbstractJevConnectionProvider 
   public JevConnection connect() {
     CloudflareAdapter adapter = new CloudflareAdapter("cloudflare", RouteDefaults.cloudflareBaseUrl(accountId), model,
         Capabilities.full(false), apiToken, customHeaders(), CostExtractor.NONE, RequestIdExtractor.NONE, transport());
-    return new JevConnection(adapter, fallbackAdapters());
+    return connection(adapter);
   }
 
   @Override

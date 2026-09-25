@@ -4,6 +4,7 @@ import org.mule.sdk.api.exception.ModuleException;
 
 import com.mulesoft.connectors.jev.api.attributes.DecisionAttributes;
 import com.mulesoft.connectors.jev.api.attributes.TokenUsage;
+import com.mulesoft.connectors.jev.api.attributes.TraceEntry;
 import com.mulesoft.connectors.jev.internal.connection.JevConnection;
 import com.mulesoft.connectors.jev.internal.domain.DecisionRequest;
 import com.mulesoft.connectors.jev.internal.domain.DecisionResponse;
@@ -155,6 +156,10 @@ public final class DecisionEngine {
       costSource = "NONE";
     }
 
+    TraceEntry traceEntry = TraceEntry.builder().step(context.step()).provider(adapter.routeName())
+        .model(response.model()).latencyMs(latencyMs).attempts(attempts).estimatedCostUsd(cost)
+        .questionSetId(request.questionSetId()).failedOverFrom(failedOverFrom).build();
+
     DecisionAttributes attributes = DecisionAttributes.builder().provider(adapter.routeName())
         .requestedModel(response.requestedModel()).model(response.model())
         .usage(new TokenUsage(response.inputTokens(), response.outputTokens())).estimatedCostUsd(cost)
@@ -162,7 +167,7 @@ public final class DecisionEngine {
         .questionSetId(request.questionSetId()).questionSetVersion(request.questionSetVersion())
         .stateHash(request.state() == null ? null : Json.sha256(request.state()))
         .providerRequestId(response.providerRequestId())
-        .rawResponse(context.includeRawResponse() ? response.rawBody() : null).build();
+        .rawResponse(context.includeRawResponse() ? response.rawBody() : null).traceEntry(traceEntry).build();
 
     return new DecisionOutcome(answers, attributes);
   }

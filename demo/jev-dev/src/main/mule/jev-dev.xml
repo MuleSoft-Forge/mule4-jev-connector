@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:jev="http://www.mulesoft.org/schema/mule/jev"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/jev http://www.mulesoft.org/schema/mule/jev/current/mule-jev.xsd">
+
+	<!-- Secrets live in src/main/resources/local.properties (gitignored). Never hard-code the key here. -->
+	<configuration-properties file="local.properties" />
+
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config">
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+
+	<jev:config name="Jev_Config" doc:name="Jev Config">
+		<jev:openrouter-connection apiKey="${jev.openrouter.apiKey}" appTitle="Jev Demo" />
+	</jev:config>
+
+	<!-- Reusable sample ticket used by the decision flows. -->
+	<sub-flow name="sample-ticket">
+		<set-payload
+			value='#[output application/json ---
+{
+  subject: "Charged twice for my subscription",
+  body: "I was billed twice this month for the same plan and need a refund urgently before my card is charged again."
+}]'
+			doc:name="Sample ticket" />
+	</sub-flow>
+
+	<!-- ============================================================= -->
+	<!-- [Util] Get Capabilities  —  GET /capabilities                 -->
+	<!-- ============================================================= -->
+	<flow name="get-capabilities-flow">
+		<http:listener config-ref="HTTP_Listener_config" path="/capabilities" allowedMethods="GET" />
+		<logger level="INFO" category="jev.demo" message="[capabilities] ▶ requesting route capabilities" />
+		<jev:get-capabilities config-ref="Jev_Config" doc:name="[Util] Get Capabilities" />
+		<logger level="INFO" category="jev.demo" message="#['[capabilities] ◀ ' ++ write(payload, 'application/json')]" />
+	</flow>
+
+	<!-- ============================================================= -->
+	<!-- [Util] List Models  —  GET /models                            -->
+	<!-- ============================================================= -->
+	<flow name="list-models-flow">
+		<http:listener config-ref="HTTP_Listener_config" path="/models" allowedMethods="GET" />
+		<logger level="INFO" category="jev.demo" message="[models] ▶ listing models on connected routes" />
+		<jev:list-models config-ref="Jev_Config" doc:name="[Util] List Models" />
+		<logger level="INFO" category="jev.demo" message="#['[models] ◀ ' ++ write(payload, 'application/json')]" />
+	</flow>
+
+	<!-- ============================================================= -->
+	<!-- [Util] Validate Question Set  —  GET /validate                -->
+	<!-- ============================================================= -->
+	<flow name="validate-question-set-flow">
+		<http:listener config-ref="HTTP_Listener_config" path="/validate" allowedMethods="GET" />
+		<logger level="INFO" category="jev.demo" message="[validate] ▶ validating question set 'ticket-triage'" />
+		<jev:validate-question-set config-ref="Jev_Config" questionSet="ticket-triage" doc:name="[Util] Validate Question Set" />
+		<logger level="INFO" category="jev.demo" message="#['[validate] ◀ ' ++ write(payload, 'application/json')]" />
+	</flow>
+
+	<!-- ============================================================= -->
+	<!-- [Decide] Evaluate  —  GET /evaluate                           -->
+	<!-- ============================================================= -->
+	<flow name="evaluate-flow">
+		<http:listener config-ref="HTTP_Listener_config" path="/evaluate" allowedMethods="GET" />
+		<flow-ref name="sample-ticket" doc:name="Sample ticket" />
+		<logger level="INFO" category="jev.demo" message="#['[evaluate] ▶ state=' ++ write(payload, 'application/json')]" />
+		<jev:evaluate config-ref="Jev_Config" questionSet="ticket-triage" step="triage" doc:name="[Decide] Evaluate">
+			<jev:state>#[payload]</jev:state>
+		</jev:evaluate>
+		<logger level="INFO" category="jev.demo" message="#['[evaluate] ◀ answers=' ++ write(payload, 'application/json') ++ ' | provider=' ++ (attributes.provider default 'n/a') ++ ' cost=' ++ (attributes.cost default 'n/a')]" />
+	</flow>
+
+	<!-- ============================================================= -->
+	<!-- [Decide] Ask Yes/No  —  GET /ask                              -->
+	<!-- ============================================================= -->
+	<flow name="ask-noul-flow">
+		<http:listener config-ref="HTTP_Listener_config" path="/ask" allowedMethods="GET" />
+		<flow-ref name="sample-ticket" doc:name="Sample ticket" />
+		<logger level="INFO" category="jev.demo" message="[ask] ▶ asking whether the ticket is urgent" />
+		<jev:ask-noul config-ref="Jev_Config"
+			instructions="Is this ticket time-sensitive and in need of a fast response?"
+			criteriaTrue="Mentions an outage, a deadline, lost revenue, or an angry customer."
+			criteriaFalse="A routine question or feature request with no time pressure."
+			step="urgency" doc:name="[Decide] Ask Yes/No">
+			<jev:state>#[payload]</jev:state>
+		</jev:ask-noul>
+		<logger level="INFO" category="jev.demo" message="#['[ask] ◀ ' ++ write(payload, 'application/json')]" />
+	</flow>
+
+	<!-- ============================================================= -->
+	<!-- [Decide] Choose  —  GET /choose                               -->
+	<!-- ============================================================= -->
+	<flow name="choose-flow">
+		<http:listener config-ref="HTTP_Listener_config" path="/choose" allowedMethods="GET" />
+		<flow-ref name="sample-ticket" doc:name="Sample ticket" />
+		<logger level="INFO" category="jev.demo" message="[choose] ▶ routing the ticket to a team" />
+		<jev:choose config-ref="Jev_Config"
+			instructions="Which team should own this ticket, based on its subject and body?"
+			noMatchOption="other" step="routing" doc:name="[Decide] Choose">
+			<jev:state>#[payload]</jev:state>
+			<jev:choose-options>
+				<jev:choose-option key="billing" value="Payments, invoices, refunds and subscription changes." />
+				<jev:choose-option key="technical" value="Product errors, outages, integration and API problems." />
+				<jev:choose-option key="account" value="Login, access, roles and account administration." />
+			</jev:choose-options>
+		</jev:choose>
+		<logger level="INFO" category="jev.demo" message="#['[choose] ◀ ' ++ write(payload, 'application/json')]" />
+	</flow>
+
+	<!-- ============================================================= -->
+	<!-- [Decide] Score  —  GET /score                                 -->
+	<!-- ============================================================= -->
+	<flow name="score-flow">
+		<http:listener config-ref="HTTP_Listener_config" path="/score" allowedMethods="GET" />
+		<flow-ref name="sample-ticket" doc:name="Sample ticket" />
+		<logger level="INFO" category="jev.demo" message="[score] ▶ scoring customer sentiment" />
+		<jev:score config-ref="Jev_Config"
+			instructions="How positive is the customer's tone?" step="sentiment" doc:name="[Decide] Score">
+			<jev:state>#[payload]</jev:state>
+			<jev:levels>
+				<jev:level value="very negative" />
+				<jev:level value="negative" />
+				<jev:level value="neutral" />
+				<jev:level value="positive" />
+				<jev:level value="very positive" />
+			</jev:levels>
+		</jev:score>
+		<logger level="INFO" category="jev.demo" message="#['[score] ◀ ' ++ write(payload, 'application/json')]" />
+	</flow>
+
+	<!-- ============================================================= -->
+	<!-- [Select] Candidate  —  GET /select                            -->
+	<!-- ============================================================= -->
+	<flow name="select-candidate-flow">
+		<http:listener config-ref="HTTP_Listener_config" path="/select" allowedMethods="GET" />
+		<logger level="INFO" category="jev.demo" message="[select] ▶ ranking queues against the request" />
+		<jev:select-candidate config-ref="Jev_Config"
+			idField="id" labelField="name" descriptionField="description" step="select" doc:name="[Select] Candidate">
+			<jev:candidates>#[output application/json ---
+[
+  { id: "billing-queue",   name: "Billing",   description: "Payments, invoices, refunds and subscription changes." },
+  { id: "technical-queue", name: "Technical", description: "Product errors, outages, integration and API problems." },
+  { id: "account-queue",   name: "Account",   description: "Login, access, roles and account administration." }
+]]</jev:candidates>
+			<jev:query>#[output application/json ---
+{ request: "I was billed twice for my subscription and need a refund." }]</jev:query>
+		</jev:select-candidate>
+		<logger level="INFO" category="jev.demo" message="#['[select] ◀ ' ++ write(payload, 'application/json')]" />
+	</flow>
+
+	<!-- ============================================================= -->
+	<!-- [Policy] Apply  —  GET /apply-policy  (deterministic, no LLM) -->
+	<!-- ============================================================= -->
+	<flow name="apply-policy-flow">
+		<http:listener config-ref="HTTP_Listener_config" path="/apply-policy" allowedMethods="GET" />
+		<set-payload value='#[output application/json ---
+{
+  model: "demo",
+  answers: {
+    team: {
+      "type": "choice",
+      choice: "billing",
+      probabilities: { billing: 0.62, technical: 0.2, account: 0.13, other: 0.05 },
+      confidence: 0.8
+    },
+    urgent: { "type": "noul", answer: true, probability: 0.82 },
+    sentiment: { "type": "score", score: "2", derived: { level: "2" }, confidence: 0.7 }
+  }
+}]' doc:name="Sample decision" />
+		<logger level="INFO" category="jev.demo" message="#['[apply-policy] ▶ decision=' ++ write(payload, 'application/json')]" />
+		<jev:apply-policy config-ref="Jev_Config" questionSet="ticket-triage" doc:name="[Policy] Apply">
+			<jev:decision>#[payload]</jev:decision>
+		</jev:apply-policy>
+		<logger level="INFO" category="jev.demo" message="#['[apply-policy] ◀ ' ++ write(payload, 'application/json')]" />
+	</flow>
+
+	<!-- ============================================================= -->
+	<!-- End-to-end decide chain (§8.8)  —  GET /decide-chain          -->
+	<!-- evaluate ▶ apply-policy ▶ route on the action                 -->
+	<!-- ============================================================= -->
+	<flow name="decide-chain-flow">
+		<http:listener config-ref="HTTP_Listener_config" path="/decide-chain" allowedMethods="GET" />
+		<flow-ref name="sample-ticket" doc:name="Sample ticket" />
+		<logger level="INFO" category="jev.demo" message="[decide-chain] ▶ evaluate" />
+		<jev:evaluate config-ref="Jev_Config" questionSet="ticket-triage" step="triage" doc:name="[Decide] Evaluate">
+			<jev:state>#[payload]</jev:state>
+		</jev:evaluate>
+		<set-variable variableName="decisionPayload" value="#[payload]" doc:name="Keep decision" />
+		<logger level="INFO" category="jev.demo" message="#['[decide-chain] evaluate ◀ ' ++ write(vars.decisionPayload, 'application/json')]" />
+		<jev:apply-policy config-ref="Jev_Config" questionSet="ticket-triage" doc:name="[Policy] Apply">
+			<jev:decision>#[vars.decisionPayload]</jev:decision>
+		</jev:apply-policy>
+		<set-variable variableName="decision" value="#[payload]" doc:name="Keep policy result" />
+		<choice doc:name="Route on action">
+			<when expression="#[vars.decision.action == 'ACCEPT']">
+				<logger level="INFO" category="jev.demo" message="#['[decide-chain] ◀ ACCEPT — auto-route to ' ++ (vars.decisionPayload.answers.team.choice default 'unknown')]" />
+			</when>
+			<when expression="#[vars.decision.action == 'REVIEW']">
+				<logger level="WARN" category="jev.demo" message="#['[decide-chain] ◀ REVIEW — send to a human. reasons=' ++ write(vars.decision.reasons default [], 'application/json')]" />
+			</when>
+			<otherwise>
+				<logger level="ERROR" category="jev.demo" message="#['[decide-chain] ◀ REJECT — reasons=' ++ write(vars.decision.reasons default [], 'application/json')]" />
+			</otherwise>
+		</choice>
+		<set-payload value="#[vars.decision]" doc:name="Return policy result" />
+	</flow>
+
+</mule>

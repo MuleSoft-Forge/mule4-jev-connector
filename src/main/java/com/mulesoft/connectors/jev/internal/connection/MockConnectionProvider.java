@@ -1,5 +1,8 @@
 package com.mulesoft.connectors.jev.internal.connection;
 
+import org.mule.runtime.api.scheduler.Scheduler;
+import org.mule.runtime.api.scheduler.SchedulerService;
+import org.mule.runtime.api.store.ObjectStoreManager;
 import org.mule.sdk.api.annotation.Alias;
 import org.mule.sdk.api.annotation.param.Optional;
 import org.mule.sdk.api.annotation.param.Parameter;
@@ -8,18 +11,43 @@ import org.mule.sdk.api.annotation.param.display.Summary;
 import org.mule.sdk.api.connectivity.CachedConnectionProvider;
 import org.mule.sdk.api.connectivity.ConnectionValidationResult;
 
+import com.mulesoft.connectors.jev.internal.cache.DecisionCache;
+import com.mulesoft.connectors.jev.internal.engine.BudgetGuard;
+import com.mulesoft.connectors.jev.internal.engine.DecisionEngine;
+import com.mulesoft.connectors.jev.internal.engine.DelayScheduler;
+import com.mulesoft.connectors.jev.internal.engine.RetryPolicy;
 import com.mulesoft.connectors.jev.internal.provider.MockAdapter;
+import com.mulesoft.connectors.jev.internal.stats.DecisionStatsRecorder;
 
 import java.util.List;
+
+import javax.inject.Inject;
 
 /**
  * Keyless connection provider that answers from in-process fixtures. It lets tests, the demo app and design-time
  * tooling exercise every operation without a provider key. It holds no transport, so it does not share the HTTP client
- * lifecycle of the keyed providers.
+ * lifecycle of the keyed providers, but it does own the shared decision engine (and its runtime retry scheduler) the
+ * same way.
  */
 @Alias("mock")
 @DisplayName("Mock (testing)")
-public class MockConnectionProvider implements CachedConnectionProvider<JevConnection> {
+public class MockConnectionProvider
+    implements
+      CachedConnectionProvider<JevConnection>,
+      org.mule.runtime.api.lifecycle.Startable,
+      org.mule.runtime.api.lifecycle.Stoppable {
+
+  @Inject
+  private SchedulerService schedulerService;
+
+  @Inject
+  private ObjectStoreManager objectStoreManager;
+
+  private Scheduler scheduler;
+  private DecisionEngine engine;
+  private DecisionCache cache;
+  private BudgetGuard budget;
+  private DecisionStatsRecorder stats;
 
   @Parameter
   @Optional
@@ -37,8 +65,24 @@ public class MockConnectionProvider implements CachedConnectionProvider<JevConne
   private long latencyMs;
 
   @Override
+  public void start() {
+    scheduler = schedulerService.cpuLightScheduler();
+    engine = new DecisionEngine(new RetryPolicy(), DelayScheduler.on(scheduler));
+    cache = DecisionCache.create(objectStoreManager);
+    budget = BudgetGuard.create(objectStoreManager);
+    stats = DecisionStatsRecorder.create(objectStoreManager);
+  }
+
+  @Override
+  public void stop() {
+    if (scheduler != null) {
+      scheduler.stop();
+    }
+  }
+
+  @Override
   public JevConnection connect() {
-    return new JevConnection(new MockAdapter(defaultNoul, latencyMs), List.of());
+    return new JevConnection(new MockAdapter(defaultNoul, latencyMs), List.of(), engine, cache, budget, stats);
   }
 
   @Override
