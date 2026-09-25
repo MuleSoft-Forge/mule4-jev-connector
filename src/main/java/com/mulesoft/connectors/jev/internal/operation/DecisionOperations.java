@@ -4,6 +4,8 @@ import org.mule.runtime.api.scheduler.Scheduler;
 import org.mule.runtime.api.scheduler.SchedulerService;
 import org.mule.sdk.api.annotation.Alias;
 import org.mule.sdk.api.annotation.error.Throws;
+import org.mule.sdk.api.annotation.metadata.MetadataKeyId;
+import org.mule.sdk.api.annotation.metadata.OutputResolver;
 import org.mule.sdk.api.annotation.param.Config;
 import org.mule.sdk.api.annotation.param.Connection;
 import org.mule.sdk.api.annotation.param.Content;
@@ -26,6 +28,8 @@ import com.mulesoft.connectors.jev.internal.engine.DelayScheduler;
 import com.mulesoft.connectors.jev.internal.engine.RetryPolicy;
 import com.mulesoft.connectors.jev.internal.error.DecisionErrorTypeProvider;
 import com.mulesoft.connectors.jev.internal.error.JevErrorType;
+import com.mulesoft.connectors.jev.internal.metadata.DecisionOutputResolver;
+import com.mulesoft.connectors.jev.internal.metadata.QuestionSetTypeKeysResolver;
 import com.mulesoft.connectors.jev.internal.questionset.QuestionSet;
 import com.mulesoft.connectors.jev.internal.questionset.QuestionSetLoader;
 import com.mulesoft.connectors.jev.internal.util.Json;
@@ -93,10 +97,11 @@ public class DecisionOperations
   @Alias("evaluate")
   @DisplayName("[Decide] Evaluate")
   @MediaType(value = MediaType.APPLICATION_JSON, strict = false)
+  @OutputResolver(output = DecisionOutputResolver.class)
   @Throws(DecisionErrorTypeProvider.class)
   public void evaluate(@Config JevConfiguration config, @Connection JevConnection connection,
       @Content InputStream state, @Optional @Content(primary = false) @DisplayName("Questions") InputStream questions,
-      @Optional @DisplayName("Question set") @org.mule.sdk.api.annotation.values.OfValues(com.mulesoft.connectors.jev.internal.value.QuestionSetValueProvider.class) String questionSet,
+      @Optional @DisplayName("Question set") @MetadataKeyId(QuestionSetTypeKeysResolver.class) String questionSet,
       @Optional String questionSetId, @Optional String questionSetVersion,
       @ParameterGroup(name = "Request options") RequestOptions options,
       CompletionCallback<InputStream, DecisionAttributes> callback) {
@@ -114,7 +119,19 @@ public class DecisionOperations
           new ModuleException("Could not parse the decision input as JSON", JevErrorType.INVALID_QUESTION_SET, e));
       return;
     }
-    run(config, connection, request, options, callback, DecisionOutcome::payload);
+    run(config, connection, request, options, callback, DecisionOperations::wrapAnswers);
+  }
+
+  /** Wraps the enriched answers as the §7 canonical payload {@code {model, answers}} for the full evaluate op. */
+  private static ObjectNode wrapAnswers(DecisionOutcome outcome) {
+    ObjectNode payload = Json.object();
+    if (outcome.attributes().getModel() == null) {
+      payload.putNull("model");
+    } else {
+      payload.put("model", outcome.attributes().getModel());
+    }
+    payload.set("answers", outcome.payload());
+    return payload;
   }
 
   /**
