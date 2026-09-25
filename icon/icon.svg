@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <title>Jev Connector</title>
+  <circle cx="256" cy="256" r="256" fill="#E8F1FC"/>
+  <g fill="none" stroke="#0B5CAD" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M104 256 H214"/>
+    <path d="M214 256 C 262 256, 262 156, 330 156"/>
+    <path d="M214 256 H330"/>
+    <path d="M214 256 C 262 256, 262 356, 330 356"/>
+  </g>
+  <circle cx="214" cy="256" r="30" fill="#0B5CAD"/>
+  <circle cx="372" cy="156" r="44" fill="#F2A900"/>
+  <circle cx="372" cy="256" r="26" fill="#0B5CAD"/>
+  <circle cx="372" cy="356" r="16" fill="#0B5CAD"/>
+</svg>

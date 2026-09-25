@@ -1,0 +1,13 @@
+target/
+*.class
+*.jar
+*.log
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+.DS_Store
+automation-credentials.properties
