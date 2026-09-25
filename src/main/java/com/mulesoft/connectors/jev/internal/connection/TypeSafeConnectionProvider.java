@@ -44,7 +44,7 @@ public class TypeSafeConnectionProvider extends AbstractJevConnectionProvider {
   public JevConnection connect() {
     SystemOneAdapter adapter = new SystemOneAdapter("typesafe", baseUrl, model, Capabilities.full(true), apiKey,
         customHeaders(), CostExtractor.NONE, RequestIdExtractor.header("x-typesafe-request-id"), transport());
-    return new JevConnection(adapter, fallbackAdapters(), engine());
+    return connection(adapter);
   }
 
   @Override

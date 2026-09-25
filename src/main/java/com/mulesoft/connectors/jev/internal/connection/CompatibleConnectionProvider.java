@@ -51,7 +51,7 @@ public class CompatibleConnectionProvider extends AbstractJevConnectionProvider 
   public JevConnection connect() {
     SystemOneAdapter adapter = new SystemOneAdapter("compatible", baseUrl, model, Capabilities.full(supportsModelList),
         apiKey, customHeaders(), CostExtractor.NONE, RequestIdExtractor.header("x-typesafe-request-id"), transport());
-    return new JevConnection(adapter, fallbackAdapters(), engine());
+    return connection(adapter);
   }
 
   @Override
