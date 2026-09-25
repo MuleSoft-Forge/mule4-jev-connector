@@ -10,4 +10,8 @@ target/
 .project
 .factorypath
 .DS_Store
+.mule/
 automation-credentials.properties
+# Local secrets for the demo app (real keys live here, never committed).
+local.properties
+**/local.properties
