@@ -2,6 +2,7 @@ package com.mulesoft.connectors.jev.internal.connection;
 
 import org.mule.runtime.api.scheduler.Scheduler;
 import org.mule.runtime.api.scheduler.SchedulerService;
+import org.mule.runtime.api.store.ObjectStoreManager;
 import org.mule.sdk.api.annotation.Alias;
 import org.mule.sdk.api.annotation.param.Optional;
 import org.mule.sdk.api.annotation.param.Parameter;
@@ -10,10 +11,13 @@ import org.mule.sdk.api.annotation.param.display.Summary;
 import org.mule.sdk.api.connectivity.CachedConnectionProvider;
 import org.mule.sdk.api.connectivity.ConnectionValidationResult;
 
+import com.mulesoft.connectors.jev.internal.cache.DecisionCache;
+import com.mulesoft.connectors.jev.internal.engine.BudgetGuard;
 import com.mulesoft.connectors.jev.internal.engine.DecisionEngine;
 import com.mulesoft.connectors.jev.internal.engine.DelayScheduler;
 import com.mulesoft.connectors.jev.internal.engine.RetryPolicy;
 import com.mulesoft.connectors.jev.internal.provider.MockAdapter;
+import com.mulesoft.connectors.jev.internal.stats.DecisionStatsRecorder;
 
 import java.util.List;
 
@@ -36,8 +40,14 @@ public class MockConnectionProvider
   @Inject
   private SchedulerService schedulerService;
 
+  @Inject
+  private ObjectStoreManager objectStoreManager;
+
   private Scheduler scheduler;
   private DecisionEngine engine;
+  private DecisionCache cache;
+  private BudgetGuard budget;
+  private DecisionStatsRecorder stats;
 
   @Parameter
   @Optional
@@ -58,6 +68,9 @@ public class MockConnectionProvider
   public void start() {
     scheduler = schedulerService.cpuLightScheduler();
     engine = new DecisionEngine(new RetryPolicy(), DelayScheduler.on(scheduler));
+    cache = DecisionCache.create(objectStoreManager);
+    budget = BudgetGuard.create(objectStoreManager);
+    stats = DecisionStatsRecorder.create(objectStoreManager);
   }
 
   @Override
@@ -69,7 +82,7 @@ public class MockConnectionProvider
 
   @Override
   public JevConnection connect() {
-    return new JevConnection(new MockAdapter(defaultNoul, latencyMs), List.of(), engine);
+    return new JevConnection(new MockAdapter(defaultNoul, latencyMs), List.of(), engine, cache, budget, stats);
   }
 
   @Override

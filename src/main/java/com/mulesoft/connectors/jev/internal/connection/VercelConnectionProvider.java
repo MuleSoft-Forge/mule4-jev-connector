@@ -45,7 +45,7 @@ public class VercelConnectionProvider extends AbstractJevConnectionProvider {
   public JevConnection connect() {
     SystemOneAdapter adapter = new SystemOneAdapter("vercel", baseUrl, model, Capabilities.full(true), apiKey,
         customHeaders(), CostExtractor.VERCEL, RequestIdExtractor.VERCEL_GENERATION_ID, transport());
-    return new JevConnection(adapter, fallbackAdapters(), engine());
+    return connection(adapter);
   }
 
   @Override

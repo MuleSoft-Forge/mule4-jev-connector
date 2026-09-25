@@ -2,6 +2,7 @@ package com.mulesoft.connectors.jev.internal.connection;
 
 import org.mule.runtime.api.scheduler.Scheduler;
 import org.mule.runtime.api.scheduler.SchedulerService;
+import org.mule.runtime.api.store.ObjectStoreManager;
 import org.mule.runtime.api.tls.TlsContextFactory;
 import org.mule.runtime.http.api.HttpService;
 import org.mule.runtime.http.api.client.HttpClient;
@@ -15,11 +16,14 @@ import org.mule.sdk.api.annotation.param.display.Placement;
 import org.mule.sdk.api.annotation.param.display.Summary;
 import org.mule.sdk.api.connectivity.CachedConnectionProvider;
 
+import com.mulesoft.connectors.jev.internal.cache.DecisionCache;
+import com.mulesoft.connectors.jev.internal.engine.BudgetGuard;
 import com.mulesoft.connectors.jev.internal.engine.DecisionEngine;
 import com.mulesoft.connectors.jev.internal.engine.DelayScheduler;
 import com.mulesoft.connectors.jev.internal.engine.RetryPolicy;
 import com.mulesoft.connectors.jev.internal.http.HttpTransport;
 import com.mulesoft.connectors.jev.internal.provider.ProviderAdapter;
+import com.mulesoft.connectors.jev.internal.stats.DecisionStatsRecorder;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -48,6 +52,9 @@ public abstract class AbstractJevConnectionProvider
 
   @Inject
   private SchedulerService schedulerService;
+
+  @Inject
+  private ObjectStoreManager objectStoreManager;
 
   @Parameter
   @Optional(defaultValue = "60000")
@@ -94,6 +101,9 @@ public abstract class AbstractJevConnectionProvider
   private HttpClient httpClient;
   private Scheduler scheduler;
   private DecisionEngine engine;
+  private DecisionCache cache;
+  private BudgetGuard budget;
+  private DecisionStatsRecorder stats;
 
   @Override
   public void start() {
@@ -108,6 +118,9 @@ public abstract class AbstractJevConnectionProvider
     // its retry scheduler are owned here and shared by every operation on this connection.
     scheduler = schedulerService.cpuLightScheduler();
     engine = new DecisionEngine(new RetryPolicy(), DelayScheduler.on(scheduler));
+    cache = DecisionCache.create(objectStoreManager);
+    budget = BudgetGuard.create(objectStoreManager);
+    stats = DecisionStatsRecorder.create(objectStoreManager);
   }
 
   @Override
@@ -123,6 +136,15 @@ public abstract class AbstractJevConnectionProvider
   /** The shared decision engine, created in {@link #start()} once the runtime scheduler is available. */
   protected DecisionEngine engine() {
     return engine;
+  }
+
+  /**
+   * Assembles the connection for {@code primary}: its configured fallbacks, the shared engine and the config-scoped
+   * governance objects (cache, budget guard, stats recorder). Every keyed provider builds its adapter and delegates
+   * here so governance wiring lives in one place.
+   */
+  protected JevConnection connection(ProviderAdapter primary) {
+    return new JevConnection(primary, fallbackAdapters(), engine, cache, budget, stats);
   }
 
   /** A transport bound to the shared, started HTTP client. */

@@ -16,6 +16,6 @@ public class DecisionErrorTypeProvider implements ErrorTypeProvider {
   public Set<ErrorTypeDefinition> getErrorTypes() {
     return Set.of(JevErrorType.UNAUTHORIZED, JevErrorType.RATE_LIMITED, JevErrorType.OVERLOADED, JevErrorType.TIMEOUT,
         JevErrorType.CONNECTIVITY, JevErrorType.PROVIDER_VALIDATION, JevErrorType.PROVIDER_ERROR,
-        JevErrorType.INVALID_RESPONSE, JevErrorType.UNSUPPORTED_BY_PROVIDER);
+        JevErrorType.INVALID_RESPONSE, JevErrorType.UNSUPPORTED_BY_PROVIDER, JevErrorType.BUDGET_EXCEEDED);
   }
 }

@@ -16,9 +16,11 @@ import org.mule.sdk.api.runtime.operation.Result;
 import org.mule.sdk.api.runtime.process.CompletionCallback;
 
 import com.mulesoft.connectors.jev.api.attributes.DecisionAttributes;
+import com.mulesoft.connectors.jev.internal.cache.DecisionCache;
 import com.mulesoft.connectors.jev.internal.config.JevConfiguration;
 import com.mulesoft.connectors.jev.internal.connection.JevConnection;
 import com.mulesoft.connectors.jev.internal.domain.DecisionRequest;
+import com.mulesoft.connectors.jev.internal.engine.BudgetGuard;
 import com.mulesoft.connectors.jev.internal.engine.DecisionContext;
 import com.mulesoft.connectors.jev.internal.engine.DecisionEngine;
 import com.mulesoft.connectors.jev.internal.engine.DecisionOutcome;
@@ -26,8 +28,7 @@ import com.mulesoft.connectors.jev.internal.error.DecisionErrorTypeProvider;
 import com.mulesoft.connectors.jev.internal.error.JevErrorType;
 import com.mulesoft.connectors.jev.internal.metadata.DecisionOutputResolver;
 import com.mulesoft.connectors.jev.internal.metadata.QuestionSetTypeKeysResolver;
-import com.mulesoft.connectors.jev.internal.questionset.QuestionSet;
-import com.mulesoft.connectors.jev.internal.questionset.QuestionSetLoader;
+import com.mulesoft.connectors.jev.internal.stats.DecisionStatsRecorder;
 import com.mulesoft.connectors.jev.internal.util.Json;
 
 import java.io.ByteArrayInputStream;
@@ -36,7 +37,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,7 +82,8 @@ public class DecisionOperations {
     DecisionRequest request;
     try {
       JsonNode stateNode = Json.read(state);
-      Resolved resolved = resolveQuestions(config, questions, questionSet, questionSetId, questionSetVersion);
+      QuestionResolution.Resolved resolved = QuestionResolution.resolve(config, questions, questionSet, questionSetId,
+          questionSetVersion);
       request = new DecisionRequest(stateNode, options.getModelOverride(), resolved.questions, resolved.noMatchOptions,
           resolved.questionSetId, resolved.questionSetVersion);
     } catch (ModuleException e) {
@@ -240,20 +241,74 @@ public class DecisionOperations {
     run(config, connection, request, options, callback, outcome -> candidatePayload(outcome, byId));
   }
 
-  /** Shared tail: build the context, run the engine, stream the payload the caller shaped. */
+  /**
+   * Shared tail: validate against the config's cache → budget → engine path (section 4), then stream the payload the
+   * caller shaped. A cache hit skips the engine entirely; the budget guard reserves one call before the engine runs and
+   * raises {@code JEV:BUDGET_EXCEEDED} when a limit is hit; usage and stats are recorded once the engine completes.
+   */
   private void run(JevConfiguration config, JevConnection connection, DecisionRequest request, RequestOptions options,
       CompletionCallback<InputStream, DecisionAttributes> callback, Function<DecisionOutcome, ObjectNode> payloadFn) {
     DecisionContext context = new DecisionContext(config.getPricePerMillionInputTokens(),
         options.isIncludeRawResponse(), options.getStep());
+
+    DecisionCache cache = connection.cache();
+    boolean useCache = config.isCacheEnabled() && options.isUseCache() && cache != null;
+    String cacheKey = null;
+    if (useCache) {
+      cacheKey = cache.keyFor(connection.primary().routeName(), request.requestedModel(), request);
+      java.util.Optional<DecisionOutcome> hit = cache.lookup(cacheKey, config.cacheTtlMillis());
+      if (hit.isPresent()) {
+        emit(callback, hit.get(), payloadFn);
+        return;
+      }
+    }
+
+    BudgetGuard budget = connection.budget();
+    if (budget != null && config.isBudgetEnabled()) {
+      try {
+        budget.reserve(config.getBudgetMaxCallsPerWindow(), config.getBudgetMaxInputTokensPerWindow(),
+            config.budgetWindowMillis());
+      } catch (ModuleException e) {
+        callback.error(e);
+        return;
+      }
+    }
+
+    final String key = cacheKey;
+    final boolean cacheThis = useCache;
     connection.engine().evaluate(connection, request, context).whenComplete((outcome, error) -> {
       if (error != null) {
         callback.error(unwrap(error));
         return;
       }
-      byte[] payload = Json.write(payloadFn.apply(outcome)).getBytes(StandardCharsets.UTF_8);
-      callback.success(Result.<InputStream, DecisionAttributes>builder().output(new ByteArrayInputStream(payload))
-          .attributes(outcome.attributes()).build());
+      recordGovernance(config, connection, request, outcome, cacheThis, cache, key);
+      emit(callback, outcome, payloadFn);
     });
+  }
+
+  /** After a successful engine call: bill the budget window, cache the result and fold it into the stats counters. */
+  private static void recordGovernance(JevConfiguration config, JevConnection connection, DecisionRequest request,
+      DecisionOutcome outcome, boolean cacheThis, DecisionCache cache, String cacheKey) {
+    if (connection.budget() != null && config.isBudgetEnabled()) {
+      Integer inputTokens = outcome.attributes().getUsage() == null
+          ? null
+          : outcome.attributes().getUsage().getInputTokens();
+      connection.budget().recordUsage(inputTokens == null ? null : inputTokens.longValue(),
+          config.budgetWindowMillis());
+    }
+    if (cacheThis && cache != null) {
+      cache.put(cacheKey, outcome);
+    }
+    if (connection.stats() != null && config.isStatsEnabled()) {
+      connection.stats().record(request, outcome, DecisionStatsRecorder.DEFAULT_WINDOW_SIZE);
+    }
+  }
+
+  private void emit(CompletionCallback<InputStream, DecisionAttributes> callback, DecisionOutcome outcome,
+      Function<DecisionOutcome, ObjectNode> payloadFn) {
+    byte[] payload = Json.write(payloadFn.apply(outcome)).getBytes(StandardCharsets.UTF_8);
+    callback.success(Result.<InputStream, DecisionAttributes>builder().output(new ByteArrayInputStream(payload))
+        .attributes(outcome.attributes()).build());
   }
 
   private void runShortcut(JevConfiguration config, JevConnection connection, InputStream state, ObjectNode question,
@@ -369,72 +424,6 @@ public class DecisionOperations {
     return payload;
   }
 
-  /**
-   * Resolves the question map, its no-match annotations and identity from either the inline {@code questions} content
-   * or a referenced question-set file. Exactly one source must be supplied.
-   */
-  private static Resolved resolveQuestions(JevConfiguration config, InputStream questions, String questionSet,
-      String questionSetId, String questionSetVersion) {
-    boolean hasInline = questions != null;
-    boolean hasFile = questionSet != null && !questionSet.isBlank();
-    if (hasInline && hasFile) {
-      throw new ModuleException("Supply either 'questions' or 'questionSet', not both",
-          JevErrorType.INVALID_QUESTION_SET);
-    }
-    if (!hasInline && !hasFile) {
-      throw new ModuleException("Supply one of 'questions' or 'questionSet'", JevErrorType.INVALID_QUESTION_SET);
-    }
-
-    JsonNode questionsNode;
-    String id = questionSetId;
-    String version = questionSetVersion;
-    if (hasFile) {
-      QuestionSet set = QuestionSetLoader.load(config.getDefaultQuestionSetsLocation(), questionSet);
-      questionsNode = set.questions();
-      if (id == null) {
-        id = set.id();
-      }
-      if (version == null) {
-        version = set.version();
-      }
-    } else {
-      questionsNode = Json.read(questions);
-    }
-    if (questionsNode == null || !questionsNode.isObject()) {
-      throw new ModuleException("The questions input must be a JSON object keyed by question id",
-          JevErrorType.INVALID_QUESTION_SET);
-    }
-    Resolved resolved = clean((ObjectNode) questionsNode);
-    resolved.questionSetId = id;
-    resolved.questionSetVersion = version;
-    return resolved;
-  }
-
-  /** Strips connector-side {@code noMatchOption} annotations from each question, capturing them for {@code derived}. */
-  private static Resolved clean(ObjectNode questions) {
-    ObjectNode cleaned = Json.object();
-    Map<String, String> noMatchOptions = new HashMap<>();
-    Iterator<Map.Entry<String, JsonNode>> it = questions.fields();
-    while (it.hasNext()) {
-      Map.Entry<String, JsonNode> entry = it.next();
-      JsonNode question = entry.getValue();
-      if (!question.isObject()) {
-        cleaned.set(entry.getKey(), question);
-        continue;
-      }
-      ObjectNode copy = (ObjectNode) question.deepCopy();
-      JsonNode noMatch = copy.remove(NO_MATCH_OPTION);
-      if (noMatch != null && noMatch.isTextual()) {
-        noMatchOptions.put(entry.getKey(), noMatch.asText());
-      }
-      cleaned.set(entry.getKey(), copy);
-    }
-    Resolved resolved = new Resolved();
-    resolved.questions = cleaned;
-    resolved.noMatchOptions = noMatchOptions;
-    return resolved;
-  }
-
   private static List<JsonNode> readArray(InputStream in) {
     JsonNode node = Json.read(in);
     if (node == null || !node.isArray()) {
@@ -450,14 +439,5 @@ public class DecisionOperations {
       return error.getCause();
     }
     return error;
-  }
-
-  /** Mutable carrier for the resolved question map and its derived-time annotations. */
-  private static final class Resolved {
-
-    private ObjectNode questions;
-    private Map<String, String> noMatchOptions;
-    private String questionSetId;
-    private String questionSetVersion;
   }
 }
