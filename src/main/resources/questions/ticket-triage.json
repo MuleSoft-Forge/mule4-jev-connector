@@ -1,0 +1,50 @@
+{
+  "id": "ticket-triage",
+  "version": "1.0.0",
+  "description": "Route an inbound support ticket to a team and flag urgency and sentiment.",
+  "questions": {
+    "team": {
+      "type": "choice",
+      "instructions": "Which team should own this ticket, based on its subject and body?",
+      "options": {
+        "billing": "Payments, invoices, refunds and subscription changes.",
+        "technical": "Product errors, outages, integration and API problems.",
+        "account": "Login, access, roles and account administration.",
+        "other": "None of the above categories apply."
+      },
+      "noMatchOption": "other"
+    },
+    "urgent": {
+      "type": "noul",
+      "instructions": "Is this ticket time-sensitive and in need of a fast response?",
+      "criteriaTrue": "Mentions an outage, a deadline, lost revenue, or an angry customer.",
+      "criteriaFalse": "A routine question or a feature request with no time pressure."
+    },
+    "sentiment": {
+      "type": "score",
+      "instructions": "How positive is the customer's tone?",
+      "legend": {
+        "1": "Very negative",
+        "2": "Negative",
+        "3": "Neutral",
+        "4": "Positive",
+        "5": "Very positive"
+      }
+    }
+  },
+  "policy": {
+    "team": {
+      "minProbability": 0.55,
+      "minMargin": 0.15,
+      "onNoMatch": "REVIEW"
+    },
+    "urgent": {
+      "acceptAbove": 0.7,
+      "rejectBelow": 0.3
+    },
+    "sentiment": {
+      "acceptLevels": ["3", "4", "5"],
+      "reviewLevels": ["2"]
+    }
+  }
+}

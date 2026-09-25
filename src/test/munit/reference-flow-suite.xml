@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+      xmlns:jev="http://www.mulesoft.org/schema/mule/jev"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd
+http://www.mulesoft.org/schema/mule/jev http://www.mulesoft.org/schema/mule/jev/current/mule-jev.xsd">
+
+  <munit:config name="reference-flow-suite.xml"/>
+
+  <!-- Keyless config: exercises the whole decide chain end-to-end against the in-process mock route (§8.8). -->
+  <jev:config name="Jev">
+    <jev:mock-connection/>
+  </jev:config>
+
+  <!--
+    Reference flow (§8.8), runnable without a provider key: evaluate a ticket against the ticket-triage question set,
+    capture the trace entry, apply the file's policy, then route on the resulting action.
+  -->
+  <munit:test name="reference-flow-evaluate-policy-route" description="§8.8 decide chain runs end-to-end against mock">
+    <munit:execution>
+      <jev:evaluate config-ref="Jev" questionSet="ticket-triage" step="triage">
+        <jev:state>#[output application/json --- { subject: "Payment failed", body: "My invoice was charged twice, please refund." }]</jev:state>
+      </jev:evaluate>
+      <set-variable variableName="jevTrace" value="#[(vars.jevTrace default []) ++ [attributes.traceEntry]]"/>
+      <jev:apply-policy config-ref="Jev" questionSet="ticket-triage" target="decision">
+        <jev:decision>#[payload]</jev:decision>
+      </jev:apply-policy>
+      <choice>
+        <when expression="#[vars.decision.action == 'ACCEPT']">
+          <set-variable variableName="branch" value="accept"/>
+        </when>
+        <otherwise>
+          <set-variable variableName="branch" value="review"/>
+        </otherwise>
+      </choice>
+    </munit:execution>
+    <munit:validation>
+      <!-- Canonical §7 payload: the mock concentrates probability on the first option, so team routes to billing. -->
+      <munit-tools:assert-that expression="#[payload.answers.team.choice]"
+                               is="#[MunitTools::equalTo('billing')]"
+                               message="evaluate must produce answers.team.choice"/>
+      <!-- team clears its thresholds (0.6 >= 0.55, margin >= 0.15), so its per-question verdict is ACCEPT. -->
+      <munit-tools:assert-that expression="#[vars.decision.perQuestion.team.action]"
+                               is="#[MunitTools::equalTo('ACCEPT')]"
+                               message="team should clear the ticket-triage thresholds"/>
+      <!-- sentiment/urgent are below threshold on mock output, so the overall action is not ACCEPT. -->
+      <munit-tools:assert-that expression="#[vars.branch]"
+                               is="#[MunitTools::equalTo('review')]"
+                               message="mock output should route to the review branch"/>
+      <munit-tools:assert-that expression="#[sizeOf(vars.jevTrace)]"
+                               is="#[MunitTools::greaterThan(0)]"
+                               message="the trace entry from evaluate must be captured"/>
+      <munit-tools:assert-that expression="#[vars.jevTrace[0].step]"
+                               is="#[MunitTools::equalTo('triage')]"
+                               message="the trace entry must record the step"/>
+    </munit:validation>
+  </munit:test>
+
+  <!-- select-candidate (the ACCEPT branch's action in §8.8) against the mock, over an inline candidate list. -->
+  <munit:test name="select-candidate-ranks-against-mock" description="[Select] Candidate runs end-to-end against mock">
+    <munit:execution>
+      <jev:select-candidate config-ref="Jev" idField="Id" labelField="Name" descriptionField="Description">
+        <jev:candidates>#[output application/json --- [
+          { Id: "billing-queue",   Name: "Billing",   Description: "Payments, invoices and refunds." },
+          { Id: "technical-queue", Name: "Technical", Description: "Outages, integration and API problems." }
+        ]]</jev:candidates>
+        <jev:query>#[output application/json --- "My invoice was charged twice, please refund."]</jev:query>
+      </jev:select-candidate>
+    </munit:execution>
+    <munit:validation>
+      <munit-tools:assert-that expression="#[payload.selected]"
+                               is="#[MunitTools::notNullValue()]"
+                               message="select-candidate must pick a candidate label"/>
+      <munit-tools:assert-that expression="#[payload.id]"
+                               is="#[MunitTools::equalTo('billing-queue')]"
+                               message="mock concentrates probability on the first candidate"/>
+      <munit-tools:assert-that expression="#[sizeOf(payload.ranking)]"
+                               is="#[MunitTools::greaterThan(0)]"
+                               message="select-candidate must return a ranking"/>
+    </munit:validation>
+  </munit:test>
+
+</mule>

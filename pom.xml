@@ -37,6 +37,10 @@
     <mockito.version>5.14.2</mockito.version>
     <wiremock.version>3.9.2</wiremock.version>
 
+    <munit.version>3.6.1</munit.version>
+    <munit.extensions.maven.plugin.version>1.7.1</munit.extensions.maven.plugin.version>
+    <munit.mule.version>4.9.0</munit.mule.version>
+
     <surefire.plugin.version>3.5.2</surefire.plugin.version>
     <formatter.plugin.version>2.23.0</formatter.plugin.version>
     <impsort.plugin.version>1.9.0</impsort.plugin.version>
@@ -52,10 +56,12 @@
       <artifactId>jackson-databind</artifactId>
       <version>${jackson.version}</version>
     </dependency>
+    <!-- Field injection annotation. Mule 4.9's injector scans javax.inject.Inject (not jakarta); the runtime
+         provides it, so this is provided scope. -->
     <dependency>
-      <groupId>jakarta.inject</groupId>
-      <artifactId>jakarta.inject-api</artifactId>
-      <version>2.0.1</version>
+      <groupId>javax.inject</groupId>
+      <artifactId>javax.inject</artifactId>
+      <version>1</version>
       <scope>provided</scope>
     </dependency>
     <!-- Mule HTTP client API. Provided by the runtime at deploy time; used only for the transport layer. -->
@@ -143,6 +149,42 @@
             </goals>
           </execution>
         </executions>
+      </plugin>
+
+      <!-- MUnit: runs the integration suites in src/test/munit against a provisioned Mule runtime. -->
+      <plugin>
+        <groupId>com.mulesoft.munit</groupId>
+        <artifactId>munit-extensions-maven-plugin</artifactId>
+        <version>${munit.extensions.maven.plugin.version}</version>
+        <executions>
+          <execution>
+            <id>test</id>
+            <!-- After package: MUnit needs the built extension descriptor (its minMuleVersion) to generate the test app. -->
+            <phase>integration-test</phase>
+            <goals>
+              <goal>test</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <!-- Pin one cached CE runtime at our declared minimum (4.9.0); avoids network-based version discovery. -->
+          <runtimeProduct>MULE_CE</runtimeProduct>
+          <runtimeVersion>${munit.mule.version}</runtimeVersion>
+        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>com.mulesoft.munit</groupId>
+            <artifactId>munit-runner</artifactId>
+            <version>${munit.version}</version>
+            <classifier>mule-plugin</classifier>
+          </dependency>
+          <dependency>
+            <groupId>com.mulesoft.munit</groupId>
+            <artifactId>munit-tools</artifactId>
+            <version>${munit.version}</version>
+            <classifier>mule-plugin</classifier>
+          </dependency>
+        </dependencies>
       </plugin>
 
       <plugin>
