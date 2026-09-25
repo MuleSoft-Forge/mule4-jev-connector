@@ -7,9 +7,9 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Out-of-band metadata attached to every decision result. It is a plain, DataWeave-friendly POJO:
- * flows read {@code attributes.provider}, {@code attributes.usage.inputTokens} and so on. No secret
- * or state text is ever placed here.
+ * Out-of-band metadata attached to every decision result. It is a plain, DataWeave-friendly POJO: flows read
+ * {@code attributes.provider}, {@code attributes.usage.inputTokens} and so on. No secret or state text is ever placed
+ * here.
  */
 public class DecisionAttributes implements Serializable {
 

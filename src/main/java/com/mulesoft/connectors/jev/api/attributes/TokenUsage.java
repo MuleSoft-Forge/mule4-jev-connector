@@ -3,8 +3,8 @@ package com.mulesoft.connectors.jev.api.attributes;
 import java.io.Serializable;
 
 /**
- * Token usage reported by a route. Either field is {@code null} when the route does not report it.
- * Jev bills on input tokens only; output tokens are informational.
+ * Token usage reported by a route. Either field is {@code null} when the route does not report it. Jev bills on input
+ * tokens only; output tokens are informational.
  */
 public class TokenUsage implements Serializable {
 

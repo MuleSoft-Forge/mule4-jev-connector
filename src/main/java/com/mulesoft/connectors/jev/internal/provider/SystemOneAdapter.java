@@ -1,5 +1,17 @@
 package com.mulesoft.connectors.jev.internal.provider;
 
+import org.mule.runtime.http.api.HttpConstants;
+import org.mule.sdk.api.exception.ModuleException;
+
+import com.mulesoft.connectors.jev.internal.domain.DecisionRequest;
+import com.mulesoft.connectors.jev.internal.domain.DecisionResponse;
+import com.mulesoft.connectors.jev.internal.engine.RetryPolicy;
+import com.mulesoft.connectors.jev.internal.error.JevErrorType;
+import com.mulesoft.connectors.jev.internal.http.HttpTransport;
+import com.mulesoft.connectors.jev.internal.http.ProviderHttpException;
+import com.mulesoft.connectors.jev.internal.http.RawHttpResponse;
+import com.mulesoft.connectors.jev.internal.util.Json;
+
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -10,22 +22,11 @@ import java.util.concurrent.CompletableFuture;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.mulesoft.connectors.jev.internal.domain.DecisionRequest;
-import com.mulesoft.connectors.jev.internal.domain.DecisionResponse;
-import com.mulesoft.connectors.jev.internal.engine.RetryPolicy;
-import com.mulesoft.connectors.jev.internal.error.JevErrorType;
-import com.mulesoft.connectors.jev.internal.http.HttpTransport;
-import com.mulesoft.connectors.jev.internal.http.ProviderHttpException;
-import com.mulesoft.connectors.jev.internal.http.RawHttpResponse;
-import com.mulesoft.connectors.jev.internal.util.Json;
-
-import org.mule.sdk.api.exception.ModuleException;
-import org.mule.sdk.api.http.HttpConstants;
 
 /**
- * Adapter for every route that speaks the canonical TypeSafe {@code systemOne} contract: TypeSafe
- * direct, OpenRouter, Vercel AI Gateway and any compatible gateway. It is parameterised by base URL,
- * model, cost extractor and request-id header, so one class serves four routes.
+ * Adapter for every route that speaks the canonical TypeSafe {@code systemOne} contract: TypeSafe direct, OpenRouter,
+ * Vercel AI Gateway and any compatible gateway. It is parameterised by base URL, model, cost extractor and request-id
+ * header, so one class serves four routes.
  */
 public class SystemOneAdapter implements ProviderAdapter {
 
@@ -40,8 +41,8 @@ public class SystemOneAdapter implements ProviderAdapter {
   private final HttpTransport transport;
 
   public SystemOneAdapter(String routeName, String baseUrl, String defaultModel, Capabilities capabilities,
-                          String apiKey, Map<String, String> extraHeaders, CostExtractor costExtractor,
-                          String requestIdHeader, HttpTransport transport) {
+      String apiKey, Map<String, String> extraHeaders, CostExtractor costExtractor, String requestIdHeader,
+      HttpTransport transport) {
     this.routeName = routeName;
     this.baseUrl = trimTrailingSlash(baseUrl);
     this.defaultModel = defaultModel;
@@ -90,8 +91,8 @@ public class SystemOneAdapter implements ProviderAdapter {
 
   private DecisionResponse parse(RawHttpResponse response, String sentModel) {
     if (!response.isSuccess()) {
-      OptionalLong retryAfter = RetryPolicy.parseRetryAfter(
-          response.header("retry-after-ms"), response.header("retry-after"), Instant.now());
+      OptionalLong retryAfter = RetryPolicy.parseRetryAfter(response.header("retry-after-ms"),
+          response.header("retry-after"), Instant.now());
       throw new ProviderHttpException(response.status(), response.body(), retryAfter);
     }
 
@@ -111,16 +112,10 @@ public class SystemOneAdapter implements ProviderAdapter {
     BigDecimal cost = costExtractor.extract(body);
     String requestId = requestIdHeader == null ? null : response.header(requestIdHeader);
 
-    return DecisionResponse.builder()
-        .model(body.path("model").asText(sentModel))
-        .requestedModel(sentModel)
-        .answers((ObjectNode) answers)
-        .inputTokens(intOrNull(body.path("usage").path("input_tokens")))
-        .outputTokens(intOrNull(body.path("usage").path("output_tokens")))
-        .providerReportedCost(cost)
-        .providerRequestId(requestId)
-        .rawBody(response.body())
-        .build();
+    return DecisionResponse.builder().model(body.path("model").asText(sentModel)).requestedModel(sentModel)
+        .answers((ObjectNode) answers).inputTokens(intOrNull(body.path("usage").path("input_tokens")))
+        .outputTokens(intOrNull(body.path("usage").path("output_tokens"))).providerReportedCost(cost)
+        .providerRequestId(requestId).rawBody(response.body()).build();
   }
 
   /** SystemOne responses are unwrapped already. Cloudflare overrides to peel off {@code result}. */

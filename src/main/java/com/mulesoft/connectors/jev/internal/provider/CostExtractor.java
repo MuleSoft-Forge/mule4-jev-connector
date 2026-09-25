@@ -5,9 +5,9 @@ import java.math.BigDecimal;
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
- * Pulls a route's self-reported cost (USD) out of a response body, or returns {@code null} when the
- * route reports none (in which case the engine estimates from tokens). Different gateways expose
- * cost in different places, so each route supplies its own extractor.
+ * Pulls a route's self-reported cost (USD) out of a response body, or returns {@code null} when the route reports none
+ * (in which case the engine estimates from tokens). Different gateways expose cost in different places, so each route
+ * supplies its own extractor.
  */
 @FunctionalInterface
 public interface CostExtractor {

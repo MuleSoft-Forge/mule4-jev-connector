@@ -1,5 +1,9 @@
 package com.mulesoft.connectors.jev.internal.provider;
 
+import com.mulesoft.connectors.jev.internal.domain.DecisionRequest;
+import com.mulesoft.connectors.jev.internal.domain.DecisionResponse;
+import com.mulesoft.connectors.jev.internal.util.Json;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -8,9 +12,6 @@ import java.util.concurrent.CompletableFuture;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.mulesoft.connectors.jev.internal.domain.DecisionRequest;
-import com.mulesoft.connectors.jev.internal.domain.DecisionResponse;
-import com.mulesoft.connectors.jev.internal.util.Json;
 
 /**
  * In-process adapter used by the {@code mock} route. It never leaves the runtime and needs no credentials, so tests and
@@ -59,23 +60,19 @@ public class MockAdapter implements ProviderAdapter {
       }
     }
 
-    DecisionResponse response = DecisionResponse.builder()
-        .model("mock")
-        .requestedModel(request.requestedModel())
-        .answers(answers)
-        .rawBody(Json.write(answers))
-        .build();
+    DecisionResponse response = DecisionResponse.builder().model("mock").requestedModel(request.requestedModel())
+        .answers(answers).rawBody(Json.write(answers)).build();
     return CompletableFuture.completedFuture(response);
   }
 
   private ObjectNode answerFor(JsonNode question) {
     String type = question.path("type").asText("noul");
     switch (type) {
-      case "choice":
+      case "choice" :
         return choiceAnswer(question);
-      case "score":
+      case "score" :
         return scoreAnswer(question);
-      default:
+      default :
         return noulAnswer();
     }
   }

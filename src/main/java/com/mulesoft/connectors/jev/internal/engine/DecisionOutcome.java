@@ -1,12 +1,13 @@
 package com.mulesoft.connectors.jev.internal.engine;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.mulesoft.connectors.jev.api.attributes.DecisionAttributes;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 /**
- * The result of a decision: the enriched answers payload the operation streams back, plus the
- * out-of-band {@link DecisionAttributes}. Operations turn the payload into a JSON {@code InputStream}
- * result; nothing here holds runtime types.
+ * The result of a decision: the enriched answers payload the operation streams back, plus the out-of-band
+ * {@link DecisionAttributes}. Operations turn the payload into a JSON {@code InputStream} result; nothing here holds
+ * runtime types.
  */
 public final class DecisionOutcome {
 

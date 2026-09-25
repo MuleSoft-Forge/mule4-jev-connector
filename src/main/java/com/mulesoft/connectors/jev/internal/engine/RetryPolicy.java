@@ -7,10 +7,10 @@ import java.util.OptionalLong;
 import java.util.function.DoubleSupplier;
 
 /**
- * Retry timing that matches the official TypeSafe SDK defaults: retry HTTP 408, 429 and any 5xx
- * (including 529) plus connection errors and timeouts; two retries after the first attempt; backoff
- * starting at 500 ms, doubling to a 5 s cap, with up to 25% subtracted as jitter; honour
- * {@code retry-after-ms} first, then {@code retry-after} (seconds or HTTP date).
+ * Retry timing that matches the official TypeSafe SDK defaults: retry HTTP 408, 429 and any 5xx (including 529) plus
+ * connection errors and timeouts; two retries after the first attempt; backoff starting at 500 ms, doubling to a 5 s
+ * cap, with up to 25% subtracted as jitter; honour {@code retry-after-ms} first, then {@code retry-after} (seconds or
+ * HTTP date).
  */
 public final class RetryPolicy {
 
@@ -42,9 +42,9 @@ public final class RetryPolicy {
   }
 
   /**
-   * Backoff for the given retry number (1 = first retry). A server-provided delay, when present,
-   * wins and is not jittered. Otherwise the delay is {@code base * 2^(n-1)}, capped at the maximum,
-   * with up to {@code jitterFactor} of it subtracted.
+   * Backoff for the given retry number (1 = first retry). A server-provided delay, when present, wins and is not
+   * jittered. Otherwise the delay is {@code base * 2^(n-1)}, capped at the maximum, with up to {@code jitterFactor} of
+   * it subtracted.
    */
   public long delayMs(int retryNumber, OptionalLong serverDelayMs) {
     if (serverDelayMs.isPresent()) {
@@ -57,9 +57,8 @@ public final class RetryPolicy {
   }
 
   /**
-   * Parses the retry-after hints. {@code retry-after-ms} (milliseconds) is checked first; otherwise
-   * {@code retry-after} is treated as a number of seconds or, failing that, an HTTP date relative to
-   * {@code now}.
+   * Parses the retry-after hints. {@code retry-after-ms} (milliseconds) is checked first; otherwise {@code retry-after}
+   * is treated as a number of seconds or, failing that, an HTTP date relative to {@code now}.
    */
   public static OptionalLong parseRetryAfter(String retryAfterMs, String retryAfter, Instant now) {
     if (retryAfterMs != null && !retryAfterMs.isBlank()) {

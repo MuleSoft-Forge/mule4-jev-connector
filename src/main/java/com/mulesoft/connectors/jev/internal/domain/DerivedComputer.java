@@ -7,8 +7,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
- * Adds connector-computed values under each answer's {@code derived} object, leaving the provider's
- * own fields untouched.
+ * Adds connector-computed values under each answer's {@code derived} object, leaving the provider's own fields
+ * untouched.
  *
  * <ul>
  * <li>Choice: {@code margin} (top probability minus runner-up), {@code runnerUp}, {@code isNoMatch}.
@@ -18,7 +18,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  */
 public final class DerivedComputer {
 
-  private DerivedComputer() {}
+  private DerivedComputer() {
+  }
 
   /** Enriches every answer in place. {@code noMatchOptions} maps question id to its no-match key. */
   public static void enrich(ObjectNode answers, Map<String, String> noMatchOptions) {

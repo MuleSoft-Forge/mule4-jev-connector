@@ -8,7 +8,10 @@ import org.mule.sdk.api.annotation.param.Parameter;
 import org.mule.sdk.api.annotation.param.display.Placement;
 import org.mule.sdk.api.annotation.param.display.Summary;
 
+import com.mulesoft.connectors.jev.internal.connection.CompatibleConnectionProvider;
 import com.mulesoft.connectors.jev.internal.connection.MockConnectionProvider;
+import com.mulesoft.connectors.jev.internal.connection.TypeSafeConnectionProvider;
+import com.mulesoft.connectors.jev.internal.operation.DecisionOperations;
 import com.mulesoft.connectors.jev.internal.operation.UtilityOperations;
 
 import java.math.BigDecimal;
@@ -22,8 +25,9 @@ import java.math.BigDecimal;
  * and policy operations and the cache / budget / stats object stores.
  */
 @Configuration(name = "config")
-@ConnectionProviders({MockConnectionProvider.class})
-@Operations({UtilityOperations.class})
+@ConnectionProviders({TypeSafeConnectionProvider.class, CompatibleConnectionProvider.class,
+    MockConnectionProvider.class})
+@Operations({DecisionOperations.class, UtilityOperations.class})
 public class JevConfiguration {
 
   @Parameter

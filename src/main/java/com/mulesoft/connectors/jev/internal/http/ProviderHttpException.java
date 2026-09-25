@@ -1,13 +1,12 @@
 package com.mulesoft.connectors.jev.internal.http;
 
-import java.util.OptionalLong;
-
 import com.mulesoft.connectors.jev.internal.error.JevErrorType;
 
+import java.util.OptionalLong;
+
 /**
- * Thrown by an adapter when a route returns a non-2xx response. It carries the status and any
- * server-provided retry delay so the engine can decide whether to retry, fail over, or raise the
- * mapped {@code JEV:*} error.
+ * Thrown by an adapter when a route returns a non-2xx response. It carries the status and any server-provided retry
+ * delay so the engine can decide whether to retry, fail over, or raise the mapped {@code JEV:*} error.
  */
 public final class ProviderHttpException extends RuntimeException {
 

@@ -5,8 +5,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Schedules a delayed completion without blocking the calling (I/O) thread. Retries are composed on
- * top of the returned future, so no operation ever sleeps a runtime thread.
+ * Schedules a delayed completion without blocking the calling (I/O) thread. Retries are composed on top of the returned
+ * future, so no operation ever sleeps a runtime thread.
  */
 @FunctionalInterface
 public interface DelayScheduler {

@@ -17,10 +17,19 @@
   <name>Jev Connector - Mule 4</name>
   <description>Mule 4 connector for the Jev decision model (TypeSafe systemOne) across interchangeable routes.</description>
 
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.release>17</maven.compiler.release>
     <min.mule.version>4.9.0</min.mule.version>
+    <mule.service.http.api.version>4.9.0</mule.service.http.api.version>
 
     <jackson.version>2.17.2</jackson.version>
 
@@ -28,6 +37,7 @@
     <mockito.version>5.14.2</mockito.version>
     <wiremock.version>3.9.2</wiremock.version>
 
+    <surefire.plugin.version>3.5.2</surefire.plugin.version>
     <formatter.plugin.version>2.23.0</formatter.plugin.version>
     <impsort.plugin.version>1.9.0</impsort.plugin.version>
     <checkstyle.plugin.version>3.6.0</checkstyle.plugin.version>
@@ -46,6 +56,13 @@
       <groupId>jakarta.inject</groupId>
       <artifactId>jakarta.inject-api</artifactId>
       <version>2.0.1</version>
+      <scope>provided</scope>
+    </dependency>
+    <!-- Mule HTTP client API. Provided by the runtime at deploy time; used only for the transport layer. -->
+    <dependency>
+      <groupId>org.mule.runtime</groupId>
+      <artifactId>mule-service-http-api</artifactId>
+      <version>${mule.service.http.api.version}</version>
       <scope>provided</scope>
     </dependency>
 
@@ -72,6 +89,12 @@
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${surefire.plugin.version}</version>
+      </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>

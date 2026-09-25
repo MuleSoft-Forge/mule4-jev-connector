@@ -3,9 +3,9 @@ package com.mulesoft.connectors.jev.internal.engine;
 import java.math.BigDecimal;
 
 /**
- * Per-evaluation knobs the engine needs but that are not part of the wire request: the input-token
- * price used to estimate cost when a route reports none, and whether to attach the raw response body
- * to attributes. Question-set identity travels on the {@code DecisionRequest}.
+ * Per-evaluation knobs the engine needs but that are not part of the wire request: the input-token price used to
+ * estimate cost when a route reports none, and whether to attach the raw response body to attributes. Question-set
+ * identity travels on the {@code DecisionRequest}.
  */
 public final class DecisionContext {
 

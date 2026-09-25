@@ -8,13 +8,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
- * Canonical, provider-agnostic decision request. Operations build one of these and hand it to the
- * engine; route differences live only in the adapters.
+ * Canonical, provider-agnostic decision request. Operations build one of these and hand it to the engine; route
+ * differences live only in the adapters.
  *
  * <p>
- * {@code questions} is already cleaned for the wire: connector-side annotations such as
- * {@code noMatchOption} have been stripped and captured in {@link #noMatchOptions()} so they can
- * drive {@code derived.isNoMatch} without being sent to the provider.
+ * {@code questions} is already cleaned for the wire: connector-side annotations such as {@code noMatchOption} have been
+ * stripped and captured in {@link #noMatchOptions()} so they can drive {@code derived.isNoMatch} without being sent to
+ * the provider.
  */
 public final class DecisionRequest {
 
@@ -26,7 +26,7 @@ public final class DecisionRequest {
   private final String questionSetVersion;
 
   public DecisionRequest(JsonNode state, String requestedModel, ObjectNode questions,
-                         Map<String, String> noMatchOptions, String questionSetId, String questionSetVersion) {
+      Map<String, String> noMatchOptions, String questionSetId, String questionSetVersion) {
     this.state = state;
     this.requestedModel = requestedModel;
     this.questions = questions;

@@ -5,9 +5,9 @@ import java.math.BigDecimal;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
- * A parsed, route-normalised decision response. Adapters unwrap any envelope, pull out usage and any
- * provider-reported cost, and hand back this uniform shape. Connector-computed fields are added
- * later by {@code DerivedComputer}; nothing here is mixed into the provider's own fields.
+ * A parsed, route-normalised decision response. Adapters unwrap any envelope, pull out usage and any provider-reported
+ * cost, and hand back this uniform shape. Connector-computed fields are added later by {@code DerivedComputer}; nothing
+ * here is mixed into the provider's own fields.
  */
 public final class DecisionResponse {
 

@@ -5,6 +5,7 @@ import org.mule.sdk.api.annotation.param.Optional;
 import org.mule.sdk.api.annotation.param.Parameter;
 import org.mule.sdk.api.annotation.param.display.DisplayName;
 import org.mule.sdk.api.annotation.param.display.Summary;
+import org.mule.sdk.api.connectivity.CachedConnectionProvider;
 import org.mule.sdk.api.connectivity.ConnectionValidationResult;
 
 import com.mulesoft.connectors.jev.internal.provider.MockAdapter;
@@ -13,11 +14,12 @@ import java.util.List;
 
 /**
  * Keyless connection provider that answers from in-process fixtures. It lets tests, the demo app and design-time
- * tooling exercise every operation without a provider key.
+ * tooling exercise every operation without a provider key. It holds no transport, so it does not share the HTTP client
+ * lifecycle of the keyed providers.
  */
 @Alias("mock")
 @DisplayName("Mock (testing)")
-public class MockConnectionProvider extends AbstractJevConnectionProvider {
+public class MockConnectionProvider implements CachedConnectionProvider<JevConnection> {
 
   @Parameter
   @Optional

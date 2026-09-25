@@ -10,14 +10,13 @@ import java.util.Set;
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
- * Enforces the documented Jev API limits locally, before any billed call, and emits advisory
- * warnings for question sets that are legal but likely to behave poorly.
+ * Enforces the documented Jev API limits locally, before any billed call, and emits advisory warnings for question sets
+ * that are legal but likely to behave poorly.
  *
  * <p>
- * Hard limits (§3): non-empty {@code questions}; each has {@code type} and {@code instructions};
- * Choice ≤ 255 options; Score 2–10 levels. Warnings (§8.7): Choice with no no-match option,
- * duplicate or empty option descriptions, Score with fewer than 3 levels, Choice with more than 20
- * options.
+ * Hard limits (§3): non-empty {@code questions}; each has {@code type} and {@code instructions}; Choice ≤ 255 options;
+ * Score 2–10 levels. Warnings (§8.7): Choice with no no-match option, duplicate or empty option descriptions, Score
+ * with fewer than 3 levels, Choice with more than 20 options.
  */
 public final class QuestionSetValidator {
 
@@ -30,8 +29,8 @@ public final class QuestionSetValidator {
   private static final Set<String> TYPES = Set.of("noul", "choice", "score");
 
   /**
-   * Validates the {@code questions} map. {@code noMatchOptions} maps a question id to a declared
-   * no-match option key so the "missing no-match" warning is not raised where one was configured.
+   * Validates the {@code questions} map. {@code noMatchOptions} maps a question id to a declared no-match option key so
+   * the "missing no-match" warning is not raised where one was configured.
    */
   public ValidationResult validate(JsonNode questions, Map<String, String> noMatchOptions) {
     List<String> errors = new ArrayList<>();
@@ -50,8 +49,8 @@ public final class QuestionSetValidator {
     return new ValidationResult(errors, warnings);
   }
 
-  private void validateQuestion(String id, JsonNode q, Map<String, String> noMatchOptions,
-                                List<String> errors, List<String> warnings) {
+  private void validateQuestion(String id, JsonNode q, Map<String, String> noMatchOptions, List<String> errors,
+      List<String> warnings) {
     if (q == null || !q.isObject()) {
       errors.add(id + ": question must be an object");
       return;
@@ -76,8 +75,8 @@ public final class QuestionSetValidator {
     }
   }
 
-  private void validateChoice(String id, JsonNode q, Map<String, String> noMatchOptions,
-                              List<String> errors, List<String> warnings) {
+  private void validateChoice(String id, JsonNode q, Map<String, String> noMatchOptions, List<String> errors,
+      List<String> warnings) {
     JsonNode criteria = q.get("criteria");
     if (criteria == null || !criteria.isObject() || criteria.isEmpty()) {
       errors.add(id + ": choice requires a non-empty criteria map of option to description");
@@ -114,8 +113,8 @@ public final class QuestionSetValidator {
     }
     int levels = criteria.size();
     if (levels < MIN_SCORE_LEVELS || levels > MAX_SCORE_LEVELS) {
-      errors.add(id + ": score must have between " + MIN_SCORE_LEVELS + " and " + MAX_SCORE_LEVELS
-          + " levels, found " + levels);
+      errors.add(id + ": score must have between " + MIN_SCORE_LEVELS + " and " + MAX_SCORE_LEVELS + " levels, found "
+          + levels);
     } else if (levels < RECOMMENDED_MIN_SCORE_LEVELS) {
       warnings.add(id + ": score has fewer than " + RECOMMENDED_MIN_SCORE_LEVELS + " levels");
     }

@@ -6,9 +6,8 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * A minimal, SDK-free view of an HTTP response: status, body text, and case-insensitive header
- * lookup. Keeping this decoupled from the Mule HTTP types lets the parsing and error-mapping code be
- * unit-tested without a runtime.
+ * A minimal, SDK-free view of an HTTP response: status, body text, and case-insensitive header lookup. Keeping this
+ * decoupled from the Mule HTTP types lets the parsing and error-mapping code be unit-tested without a runtime.
  */
 public final class RawHttpResponse {
 

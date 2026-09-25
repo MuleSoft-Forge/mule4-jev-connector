@@ -1,5 +1,14 @@
 package com.mulesoft.connectors.jev.internal.http;
 
+import org.mule.runtime.http.api.HttpConstants;
+import org.mule.runtime.http.api.client.HttpClient;
+import org.mule.runtime.http.api.client.HttpRequestOptions;
+import org.mule.runtime.http.api.domain.entity.ByteArrayHttpEntity;
+import org.mule.runtime.http.api.domain.entity.EmptyHttpEntity;
+import org.mule.runtime.http.api.domain.message.request.HttpRequest;
+import org.mule.runtime.http.api.domain.message.request.HttpRequestBuilder;
+import org.mule.runtime.http.api.domain.message.response.HttpResponse;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -7,49 +16,38 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import org.mule.sdk.api.http.HttpConstants;
-import org.mule.sdk.api.http.HttpService;
-import org.mule.sdk.api.http.client.HttpClient;
-import org.mule.sdk.api.http.domain.entity.HttpEntityFactory;
-import org.mule.sdk.api.http.domain.message.request.HttpRequest;
-import org.mule.sdk.api.http.domain.message.request.HttpRequestBuilder;
-import org.mule.sdk.api.http.domain.message.response.HttpResponse;
-
 /**
- * Thin wrapper over the Mule HTTP client that performs non-blocking sends and adapts the response to
- * a SDK-free {@link RawHttpResponse}. All sdk-api HTTP usage is confined here.
+ * Thin wrapper over the Mule HTTP client that performs non-blocking sends and adapts the response to a SDK-free
+ * {@link RawHttpResponse}. All runtime HTTP-API usage is confined here so the rest of the connector stays testable
+ * against plain values.
  */
 public final class HttpTransport {
 
-  private final HttpService httpService;
   private final HttpClient httpClient;
   private final int responseTimeoutMs;
 
-  public HttpTransport(HttpService httpService, HttpClient httpClient, int responseTimeoutMs) {
-    this.httpService = httpService;
+  public HttpTransport(HttpClient httpClient, int responseTimeoutMs) {
     this.httpClient = httpClient;
     this.responseTimeoutMs = responseTimeoutMs;
   }
 
   /**
-   * Sends a request without blocking. The returned future completes with the response (any status),
-   * or completes exceptionally on a transport failure (I/O, DNS, TLS, timeout).
+   * Sends a request without blocking. The returned future completes with the response (any status), or completes
+   * exceptionally on a transport failure (I/O, DNS, TLS, timeout).
    */
-  public CompletableFuture<RawHttpResponse> send(HttpConstants.Method method, String url,
-                                                 Map<String, String> headers, byte[] body) {
-    HttpEntityFactory entityFactory = httpService.entityFactory();
-    HttpRequestBuilder builder = httpService.requestBuilder()
-        .method(method)
-        .uri(url)
-        .entity(body == null ? entityFactory.emptyEntity() : entityFactory.from(body));
+  public CompletableFuture<RawHttpResponse> send(HttpConstants.Method method, String url, Map<String, String> headers,
+      byte[] body) {
+    HttpRequestBuilder builder = HttpRequest.builder().method(method).uri(url)
+        .entity(body == null ? new EmptyHttpEntity() : new ByteArrayHttpEntity(body));
     if (headers != null) {
       headers.forEach(builder::addHeader);
     }
     HttpRequest request = builder.build();
 
-    return httpClient
-        .sendAsync(request, options -> options.setResponseTimeout(responseTimeoutMs).setFollowsRedirect(false))
-        .thenApply(HttpTransport::toRaw);
+    HttpRequestOptions options = HttpRequestOptions.builder().responseTimeout(responseTimeoutMs).followsRedirect(false)
+        .build();
+
+    return httpClient.sendAsync(request, options).thenApply(HttpTransport::toRaw);
   }
 
   private static RawHttpResponse toRaw(HttpResponse response) {

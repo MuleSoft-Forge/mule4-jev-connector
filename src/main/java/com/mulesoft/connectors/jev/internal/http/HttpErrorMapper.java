@@ -1,40 +1,42 @@
 package com.mulesoft.connectors.jev.internal.http;
 
+import org.mule.sdk.api.exception.ModuleException;
+
+import com.mulesoft.connectors.jev.internal.error.JevErrorType;
+import com.mulesoft.connectors.jev.internal.util.Json;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.mulesoft.connectors.jev.internal.error.JevErrorType;
-import com.mulesoft.connectors.jev.internal.util.Json;
-
-import org.mule.sdk.api.exception.ModuleException;
 
 /**
- * Maps a provider HTTP response (status + body) onto a typed {@code JEV:*} error, extracting the
- * human-readable message the way the official TypeSafe SDK does.
+ * Maps a provider HTTP response (status + body) onto a typed {@code JEV:*} error, extracting the human-readable message
+ * the way the official TypeSafe SDK does.
  */
 public final class HttpErrorMapper {
 
-  private HttpErrorMapper() {}
+  private HttpErrorMapper() {
+  }
 
   /** Classifies an HTTP status into a Jev error type. */
   public static JevErrorType classify(int status) {
     switch (status) {
-      case 401:
-      case 403:
+      case 401 :
+      case 403 :
         return JevErrorType.UNAUTHORIZED;
-      case 408:
+      case 408 :
         return JevErrorType.TIMEOUT;
-      case 429:
+      case 429 :
         return JevErrorType.RATE_LIMITED;
-      case 400:
-      case 422:
+      case 400 :
+      case 422 :
         return JevErrorType.PROVIDER_VALIDATION;
-      case 503:
-      case 529:
+      case 503 :
+      case 529 :
         return JevErrorType.OVERLOADED;
-      default:
+      default :
         if (status >= 500) {
           return JevErrorType.PROVIDER_ERROR;
         }
@@ -53,9 +55,9 @@ public final class HttpErrorMapper {
   }
 
   /**
-   * Extracts the provider's error message following the documented order:
-   * {@code error} (string) → {@code error.message} → {@code message} → {@code detail} (string) →
-   * {@code detail.message} → {@code detail[].msg} joined with their {@code loc} paths.
+   * Extracts the provider's error message following the documented order: {@code error} (string) →
+   * {@code error.message} → {@code message} → {@code detail} (string) → {@code detail.message} → {@code detail[].msg}
+   * joined with their {@code loc} paths.
    */
   public static Optional<String> extractMessage(String body) {
     if (body == null || body.isBlank()) {
