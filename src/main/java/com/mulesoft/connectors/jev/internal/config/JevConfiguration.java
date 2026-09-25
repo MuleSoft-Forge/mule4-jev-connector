@@ -14,6 +14,7 @@ import com.mulesoft.connectors.jev.internal.connection.MockConnectionProvider;
 import com.mulesoft.connectors.jev.internal.connection.OpenRouterConnectionProvider;
 import com.mulesoft.connectors.jev.internal.connection.TypeSafeConnectionProvider;
 import com.mulesoft.connectors.jev.internal.connection.VercelConnectionProvider;
+import com.mulesoft.connectors.jev.internal.operation.BatchOperations;
 import com.mulesoft.connectors.jev.internal.operation.DecisionOperations;
 import com.mulesoft.connectors.jev.internal.operation.PolicyOperations;
 import com.mulesoft.connectors.jev.internal.operation.UtilityOperations;
@@ -33,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 @ConnectionProviders({TypeSafeConnectionProvider.class, OpenRouterConnectionProvider.class,
     VercelConnectionProvider.class, CloudflareConnectionProvider.class, CompatibleConnectionProvider.class,
     MockConnectionProvider.class})
-@Operations({DecisionOperations.class, PolicyOperations.class, UtilityOperations.class})
+@Operations({DecisionOperations.class, BatchOperations.class, PolicyOperations.class, UtilityOperations.class})
 public class JevConfiguration {
 
   @Parameter

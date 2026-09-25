@@ -28,8 +28,6 @@ import com.mulesoft.connectors.jev.internal.error.DecisionErrorTypeProvider;
 import com.mulesoft.connectors.jev.internal.error.JevErrorType;
 import com.mulesoft.connectors.jev.internal.metadata.DecisionOutputResolver;
 import com.mulesoft.connectors.jev.internal.metadata.QuestionSetTypeKeysResolver;
-import com.mulesoft.connectors.jev.internal.questionset.QuestionSet;
-import com.mulesoft.connectors.jev.internal.questionset.QuestionSetLoader;
 import com.mulesoft.connectors.jev.internal.stats.DecisionStatsRecorder;
 import com.mulesoft.connectors.jev.internal.util.Json;
 
@@ -39,7 +37,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -85,7 +82,8 @@ public class DecisionOperations {
     DecisionRequest request;
     try {
       JsonNode stateNode = Json.read(state);
-      Resolved resolved = resolveQuestions(config, questions, questionSet, questionSetId, questionSetVersion);
+      QuestionResolution.Resolved resolved = QuestionResolution.resolve(config, questions, questionSet, questionSetId,
+          questionSetVersion);
       request = new DecisionRequest(stateNode, options.getModelOverride(), resolved.questions, resolved.noMatchOptions,
           resolved.questionSetId, resolved.questionSetVersion);
     } catch (ModuleException e) {
@@ -426,72 +424,6 @@ public class DecisionOperations {
     return payload;
   }
 
-  /**
-   * Resolves the question map, its no-match annotations and identity from either the inline {@code questions} content
-   * or a referenced question-set file. Exactly one source must be supplied.
-   */
-  private static Resolved resolveQuestions(JevConfiguration config, InputStream questions, String questionSet,
-      String questionSetId, String questionSetVersion) {
-    boolean hasInline = questions != null;
-    boolean hasFile = questionSet != null && !questionSet.isBlank();
-    if (hasInline && hasFile) {
-      throw new ModuleException("Supply either 'questions' or 'questionSet', not both",
-          JevErrorType.INVALID_QUESTION_SET);
-    }
-    if (!hasInline && !hasFile) {
-      throw new ModuleException("Supply one of 'questions' or 'questionSet'", JevErrorType.INVALID_QUESTION_SET);
-    }
-
-    JsonNode questionsNode;
-    String id = questionSetId;
-    String version = questionSetVersion;
-    if (hasFile) {
-      QuestionSet set = QuestionSetLoader.load(config.getDefaultQuestionSetsLocation(), questionSet);
-      questionsNode = set.questions();
-      if (id == null) {
-        id = set.id();
-      }
-      if (version == null) {
-        version = set.version();
-      }
-    } else {
-      questionsNode = Json.read(questions);
-    }
-    if (questionsNode == null || !questionsNode.isObject()) {
-      throw new ModuleException("The questions input must be a JSON object keyed by question id",
-          JevErrorType.INVALID_QUESTION_SET);
-    }
-    Resolved resolved = clean((ObjectNode) questionsNode);
-    resolved.questionSetId = id;
-    resolved.questionSetVersion = version;
-    return resolved;
-  }
-
-  /** Strips connector-side {@code noMatchOption} annotations from each question, capturing them for {@code derived}. */
-  private static Resolved clean(ObjectNode questions) {
-    ObjectNode cleaned = Json.object();
-    Map<String, String> noMatchOptions = new HashMap<>();
-    Iterator<Map.Entry<String, JsonNode>> it = questions.fields();
-    while (it.hasNext()) {
-      Map.Entry<String, JsonNode> entry = it.next();
-      JsonNode question = entry.getValue();
-      if (!question.isObject()) {
-        cleaned.set(entry.getKey(), question);
-        continue;
-      }
-      ObjectNode copy = (ObjectNode) question.deepCopy();
-      JsonNode noMatch = copy.remove(NO_MATCH_OPTION);
-      if (noMatch != null && noMatch.isTextual()) {
-        noMatchOptions.put(entry.getKey(), noMatch.asText());
-      }
-      cleaned.set(entry.getKey(), copy);
-    }
-    Resolved resolved = new Resolved();
-    resolved.questions = cleaned;
-    resolved.noMatchOptions = noMatchOptions;
-    return resolved;
-  }
-
   private static List<JsonNode> readArray(InputStream in) {
     JsonNode node = Json.read(in);
     if (node == null || !node.isArray()) {
@@ -507,14 +439,5 @@ public class DecisionOperations {
       return error.getCause();
     }
     return error;
-  }
-
-  /** Mutable carrier for the resolved question map and its derived-time annotations. */
-  private static final class Resolved {
-
-    private ObjectNode questions;
-    private Map<String, String> noMatchOptions;
-    private String questionSetId;
-    private String questionSetVersion;
   }
 }
