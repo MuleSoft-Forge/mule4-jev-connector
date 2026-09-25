@@ -6,6 +6,15 @@ All notable changes to the Jev Connector are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **M4 — Scale & governance.** The `evaluate-batch` and `filter` scale operations, fanned out
+  behind a non-blocking concurrency limit with per-item de-duplication, budgeting, caching and
+  stats. Governance foundation: a decision cache, a cluster-wide `BudgetGuard` (call and
+  input-token limits per rolling window, raising `JEV:BUDGET_EXCEEDED`), and a
+  privacy-safe `DecisionStatsRecorder` — all backed by the runtime Object Store. Three
+  monitoring polling sources — `on-drift-detected` (no-match rate, mean confidence and
+  Jensen–Shannon distribution shift), `on-budget-threshold` and `on-provider-failover` —
+  each firing once per breach and re-arming on recovery. New config tabs for cache and budget
+  settings.
 - **M3 — Decide chain.** The `evaluate`, `ask-noul`, `choose`, `score` and `select-candidate`
   decision operations; the `apply-policy` governance operation; question-set files on the
   classpath with a value provider; `validate-question-set`; DataSense output metadata so

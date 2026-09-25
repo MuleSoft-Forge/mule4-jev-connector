@@ -2,6 +2,7 @@ package com.mulesoft.connectors.jev.internal.config;
 
 import org.mule.sdk.api.annotation.Configuration;
 import org.mule.sdk.api.annotation.Operations;
+import org.mule.sdk.api.annotation.Sources;
 import org.mule.sdk.api.annotation.connectivity.ConnectionProviders;
 import org.mule.sdk.api.annotation.param.Optional;
 import org.mule.sdk.api.annotation.param.Parameter;
@@ -18,6 +19,9 @@ import com.mulesoft.connectors.jev.internal.operation.BatchOperations;
 import com.mulesoft.connectors.jev.internal.operation.DecisionOperations;
 import com.mulesoft.connectors.jev.internal.operation.PolicyOperations;
 import com.mulesoft.connectors.jev.internal.operation.UtilityOperations;
+import com.mulesoft.connectors.jev.internal.source.BudgetThresholdSource;
+import com.mulesoft.connectors.jev.internal.source.DriftDetectedSource;
+import com.mulesoft.connectors.jev.internal.source.ProviderFailoverSource;
 
 import java.math.BigDecimal;
 import java.util.concurrent.TimeUnit;
@@ -35,6 +39,7 @@ import java.util.concurrent.TimeUnit;
     VercelConnectionProvider.class, CloudflareConnectionProvider.class, CompatibleConnectionProvider.class,
     MockConnectionProvider.class})
 @Operations({DecisionOperations.class, BatchOperations.class, PolicyOperations.class, UtilityOperations.class})
+@Sources({DriftDetectedSource.class, BudgetThresholdSource.class, ProviderFailoverSource.class})
 public class JevConfiguration {
 
   @Parameter

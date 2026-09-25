@@ -7,14 +7,15 @@ Jev is a decision model, not a chat model. You give it a **state** plus named, t
 those answers first-class Mule values that drive Choice routers, Batch filters, error
 handlers and follow-up calls.
 
-> **Status:** active development. Milestones **M0–M3** have landed (skeleton, transport &
-> decision engine, all five routes + failover, and the full decide/policy/utility
-> operation set with DataSense). See [`PLAN.md`](PLAN.md) §15 for the roadmap and
+> **Status:** active development. Milestones **M0–M4** have landed (skeleton, transport &
+> decision engine, all five routes + failover, the full decide/policy/utility operation set
+> with DataSense, and the scale operations plus governance — cache, budget guard, stats and
+> the three monitoring sources). See [`PLAN.md`](PLAN.md) §15 for the roadmap and
 > [`CHANGELOG.md`](CHANGELOG.md) for what has shipped.
 
 ## Contents
 
-- [Concepts](#concepts) · [Routes](#routes) · [Operations](#operations)
+- [Concepts](#concepts) · [Routes](#routes) · [Operations](#operations) · [Sources](#sources)
 - [Requirements](#requirements) · [Maven](#maven) · [Quick start](#quick-start)
 - [Demo app](#demo-app) · [Building](#building) · [License](#license)
 
@@ -48,7 +49,7 @@ rate-limit, overload or timeout errors (never on validation or authorization fai
 
 ## Operations
 
-Ten operations across three families. "Billed" operations make a provider call; the rest
+Twelve operations across four families. "Billed" operations make a provider call; the rest
 are local.
 
 ### Decide — the billed decision operations
@@ -60,6 +61,13 @@ are local.
 | **[Decide] Choose** | `choose` | ✔ | Single **Choice** shortcut over a fixed set of options; returns the chosen option and its probability distribution. Use for classification / routing into one of N labels, with an optional no-match option. |
 | **[Decide] Score** | `score` | ✔ | Single **Score** shortcut over ordered levels (a rubric); returns the level and `derived.level`. Use for grading on an ordered scale — severity, sentiment, priority. |
 | **[Select] Candidate** | `select-candidate` | ✔ | Turns a list of **upstream rows** (DB records, Salesforce queues, search hits) into a dynamic Choice: each candidate becomes an option keyed by `idField` and described by `labelField`/`descriptionField`. Returns the selected candidate object, its probability and confidence, a no-match flag, and the full ranking. Use to let Jev pick the best match from runtime data. |
+
+### Scale — many states at once
+
+| Operation | Alias | Billed | Purpose |
+| --- | --- | :---: | --- |
+| **[Decide] Evaluate Batch** | `evaluate-batch` | ✔ | Runs one question set over **many states**, fanned out with at most `maxConcurrency` calls in flight. Identical states are evaluated once (`deduplicate`), each item is budget-checked (a limit turns later items into `SKIPPED_BUDGET` rather than failing the batch), and cache/stats apply per item. Returns an array of `{index, key, status, answers, error}`; attributes carry the totals, with usage and cost billed once per unique decision. Rejects batches over `maxItems` with `JEV:BATCH_TOO_LARGE` — use a Mule Batch Job beyond that. |
+| **[Select] Filter** | `filter` | ✔ | Keeps the items for which a yes/no question clears a probability `threshold`, packing several items per call (`chunkSize`) so a long list costs a handful of calls. Returns `{kept, dropped, scores}`. |
 
 ### Policy — local governance
 
@@ -74,6 +82,21 @@ are local.
 | **[Util] Get Capabilities** | `get-capabilities` | ✗ | Reports what each connected route supports — Noul/Choice/Score, confidence, model listing, and option/level ceilings — primary route first. Local; use to feature-gate a flow or discover a route's limits. |
 | **[Util] List Models** | `list-models` | ✔ | Lists the models available on the connected routes as `{id, route}` entries, primary first. Routes that cannot enumerate models are skipped; raises `JEV:UNSUPPORTED_BY_PROVIDER` if none can. Use to populate a model picker or audit availability. |
 | **[Util] Validate Question Set** | `validate-question-set` | ✗ | Validates a question set locally, **before** any billed call, returning `{valid, errors[], warnings[]}`. Errors are the hard API limits; warnings flag legal-but-risky sets. Local; use as a fail-fast authoring check. |
+
+## Sources
+
+Three polling sources turn governance signals into flow triggers. None of the routes pushes
+events, so business triggers stay with existing connectors (Salesforce CDC, Anypoint MQ,
+Scheduler); these three watch the connector's own privacy-safe counters — never state text.
+Each carries a `<scheduling-strategy>` (default fixed frequency 60 s), runs on the primary
+cluster node, fires **once per breach**, and re-arms when the metric returns inside its
+threshold.
+
+| Source | Alias | Fires when | Payload |
+| --- | --- | --- | --- |
+| **On Drift Detected** | `on-drift-detected` | A monitored metric — no-match rate, mean confidence or the choice/level distribution (Jensen–Shannon, bounded 0–1) — moves past its threshold versus a baseline window (first or previous). | `{metric, baseline, current, windowSize, questionSetId, questionId, windowEnd}` |
+| **On Budget Threshold** | `on-budget-threshold` | Usage in the current budget window crosses `percent` of the `CALLS` or `INPUT_TOKENS` limit. | `{metric, used, limit, percent, estimatedCostUsd, windowStart}` |
+| **On Provider Failover** | `on-provider-failover` | A request the primary route could not serve was answered by a fallback (event stream, one item per failover). | `{from, to, reason, errorType, timestamp}` |
 
 ## Requirements
 
