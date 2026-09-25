@@ -214,6 +214,10 @@ public final class PolicyEvaluator {
       wrapper.set("result", decision);
       return wrapper;
     }
+    // The canonical evaluate payload is {model, answers}; judge the answers map, not the wrapper.
+    if (decision != null && decision.isObject() && decision.path("answers").isObject()) {
+      return (ObjectNode) decision.get("answers");
+    }
     if (decision instanceof ObjectNode) {
       return (ObjectNode) decision;
     }

@@ -72,6 +72,15 @@ class PolicyEvaluatorTest {
   }
 
   @Test
+  void canonicalEvaluatePayloadIsUnwrappedToItsAnswers() {
+    ObjectNode payload = Json.object();
+    payload.put("model", "mock");
+    payload.set("answers", choice(0.6, 0.05, false));
+    // Without unwrapping, the {model, answers} wrapper would judge no questions and default to ACCEPT.
+    assertEquals("REVIEW", PolicyEvaluator.evaluate(payload, Json.read(CHOICE_POLICY)).get("action").asText());
+  }
+
+  @Test
   void singleAnswerIsWrappedAndJudged() {
     JsonNode decision = Json.read("{\"type\":\"noul\",\"probability\":0.1}");
     JsonNode policy = Json.read("{\"result\":{\"acceptAbove\":0.7,\"rejectBelow\":0.3}}");

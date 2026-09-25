@@ -1,7 +1,5 @@
 package com.mulesoft.connectors.jev.internal.operation;
 
-import org.mule.runtime.api.scheduler.Scheduler;
-import org.mule.runtime.api.scheduler.SchedulerService;
 import org.mule.sdk.api.annotation.Alias;
 import org.mule.sdk.api.annotation.error.Throws;
 import org.mule.sdk.api.annotation.metadata.MetadataKeyId;
@@ -24,8 +22,6 @@ import com.mulesoft.connectors.jev.internal.domain.DecisionRequest;
 import com.mulesoft.connectors.jev.internal.engine.DecisionContext;
 import com.mulesoft.connectors.jev.internal.engine.DecisionEngine;
 import com.mulesoft.connectors.jev.internal.engine.DecisionOutcome;
-import com.mulesoft.connectors.jev.internal.engine.DelayScheduler;
-import com.mulesoft.connectors.jev.internal.engine.RetryPolicy;
 import com.mulesoft.connectors.jev.internal.error.DecisionErrorTypeProvider;
 import com.mulesoft.connectors.jev.internal.error.JevErrorType;
 import com.mulesoft.connectors.jev.internal.metadata.DecisionOutputResolver;
@@ -58,35 +54,13 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  * {@link DecisionRequest}, hands it to the {@link DecisionEngine}, and streams JSON back with
  * {@link DecisionAttributes}. Retries run on a runtime scheduler, so no I/O thread ever sleeps.
  */
-public class DecisionOperations
-    implements
-      org.mule.runtime.api.lifecycle.Startable,
-      org.mule.runtime.api.lifecycle.Stoppable {
+public class DecisionOperations {
 
   private static final String NO_MATCH_OPTION = "noMatchOption";
   private static final String SHORTCUT_KEY = "result";
   private static final String CANDIDATE_KEY = "candidate";
   private static final String CANDIDATE_NO_MATCH = "__no_match__";
   private static final int MAX_CANDIDATES = 254;
-
-  @jakarta.inject.Inject
-  private SchedulerService schedulerService;
-
-  private Scheduler scheduler;
-  private DecisionEngine engine;
-
-  @Override
-  public void start() {
-    scheduler = schedulerService.cpuLightScheduler();
-    engine = new DecisionEngine(new RetryPolicy(), DelayScheduler.on(scheduler));
-  }
-
-  @Override
-  public void stop() {
-    if (scheduler != null) {
-      scheduler.stop();
-    }
-  }
 
   /**
    * Evaluates one decision against the connected route. Supply the questions inline ({@code questions}) or by
@@ -271,7 +245,7 @@ public class DecisionOperations
       CompletionCallback<InputStream, DecisionAttributes> callback, Function<DecisionOutcome, ObjectNode> payloadFn) {
     DecisionContext context = new DecisionContext(config.getPricePerMillionInputTokens(),
         options.isIncludeRawResponse(), options.getStep());
-    engine.evaluate(connection, request, context).whenComplete((outcome, error) -> {
+    connection.engine().evaluate(connection, request, context).whenComplete((outcome, error) -> {
       if (error != null) {
         callback.error(unwrap(error));
         return;
