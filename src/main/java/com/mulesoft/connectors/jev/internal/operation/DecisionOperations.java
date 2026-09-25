@@ -10,6 +10,7 @@ import org.mule.sdk.api.annotation.param.Content;
 import org.mule.sdk.api.annotation.param.MediaType;
 import org.mule.sdk.api.annotation.param.Optional;
 import org.mule.sdk.api.annotation.param.display.DisplayName;
+import org.mule.sdk.api.annotation.values.OfValues;
 import org.mule.sdk.api.exception.ModuleException;
 import org.mule.sdk.api.runtime.operation.Result;
 import org.mule.sdk.api.runtime.process.CompletionCallback;
@@ -25,6 +26,7 @@ import com.mulesoft.connectors.jev.internal.engine.RetryPolicy;
 import com.mulesoft.connectors.jev.internal.error.DecisionErrorTypeProvider;
 import com.mulesoft.connectors.jev.internal.error.JevErrorType;
 import com.mulesoft.connectors.jev.internal.util.Json;
+import com.mulesoft.connectors.jev.internal.value.ModelValueProvider;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -79,8 +81,8 @@ public class DecisionOperations
   @Throws(DecisionErrorTypeProvider.class)
   public void evaluate(@Config JevConfiguration config, @Connection JevConnection connection,
       @Content InputStream state, @Content(primary = false) @DisplayName("Questions") InputStream questions,
-      @Optional String model, @Optional String questionSetId, @Optional String questionSetVersion,
-      @Optional(defaultValue = "false") boolean includeRawResponse,
+      @Optional @OfValues(ModelValueProvider.class) String model, @Optional String questionSetId,
+      @Optional String questionSetVersion, @Optional(defaultValue = "false") boolean includeRawResponse,
       CompletionCallback<InputStream, DecisionAttributes> callback) {
     DecisionRequest request;
     try {

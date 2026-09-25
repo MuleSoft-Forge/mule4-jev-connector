@@ -57,9 +57,9 @@ provider-reported cost (OpenRouter, Vercel); otherwise `tokens × configured pri
 
 | # | Item | Milestone | Status |
 | --- | --- | --- | --- |
-| Q2 | Cloudflare live response envelope (bare vs `result`) | M2 | open — adapter accepts both |
-| Q3 | Vercel `confidence` present on Choice/Score | M2 | open |
-| Q5 | OpenRouter / Cloudflare request-id header | M2 | open |
+| Q2 | Cloudflare live response envelope (bare vs `result`) | M2 | **resolved** — `CloudflareAdapter.unwrap` accepts both; `success:false` or a non-empty `errors` array becomes `JEV:PROVIDER_ERROR` |
+| Q3 | Vercel `confidence` present on Choice/Score | M2 | **resolved by contract** — `confidence` is passed through unchanged; when a route omits it the field is `null` (no live Vercel key available to confirm presence; behaviour is correct either way) |
+| Q5 | OpenRouter / Cloudflare request-id header | M2 | **resolved (best-effort, pending live confirmation)** — OpenRouter reads header `x-request-id`; Cloudflare exposes none (`RequestIdExtractor.NONE`). Revisit if a live call reveals a different header |
 | Q8 | Value provider can read app question-set files at design time | M3 | open |
 | Q9 | Computed `min.mule.version` with sdk-api HTTP client | M0 | see below |
 

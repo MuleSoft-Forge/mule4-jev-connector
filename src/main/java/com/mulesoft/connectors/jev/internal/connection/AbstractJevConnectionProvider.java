@@ -4,6 +4,7 @@ import org.mule.runtime.api.tls.TlsContextFactory;
 import org.mule.runtime.http.api.HttpService;
 import org.mule.runtime.http.api.client.HttpClient;
 import org.mule.runtime.http.api.client.HttpClientConfiguration;
+import org.mule.sdk.api.annotation.dsl.xml.ParameterDsl;
 import org.mule.sdk.api.annotation.param.NullSafe;
 import org.mule.sdk.api.annotation.param.Optional;
 import org.mule.sdk.api.annotation.param.Parameter;
@@ -13,8 +14,11 @@ import org.mule.sdk.api.annotation.param.display.Summary;
 import org.mule.sdk.api.connectivity.CachedConnectionProvider;
 
 import com.mulesoft.connectors.jev.internal.http.HttpTransport;
+import com.mulesoft.connectors.jev.internal.provider.ProviderAdapter;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import jakarta.inject.Inject;
@@ -69,6 +73,16 @@ public abstract class AbstractJevConnectionProvider
   @Summary("Headers added to every request, e.g. a gateway tenant or tracing header.")
   private Map<String, String> customHeaders;
 
+  @Parameter
+  @Optional
+  @NullSafe
+  @DisplayName("Fallback Routes")
+  @Placement(tab = "Failover", order = 1)
+  @ParameterDsl(allowReferences = false)
+  @Summary("Ordered fallback routes tried when the primary fails with a connectivity, rate-limit, overload or "
+      + "timeout error. Never used for validation or authorization failures.")
+  private List<FallbackRoute> fallbacks;
+
   private HttpClient httpClient;
 
   @Override
@@ -97,6 +111,19 @@ public abstract class AbstractJevConnectionProvider
   /** Headers to attach to every request, never {@code null}. */
   protected Map<String, String> customHeaders() {
     return customHeaders == null ? Map.of() : new LinkedHashMap<>(customHeaders);
+  }
+
+  /** The configured fallback adapters, in order, each bound to the shared transport. Empty when none are configured. */
+  protected List<ProviderAdapter> fallbackAdapters() {
+    if (fallbacks == null || fallbacks.isEmpty()) {
+      return List.of();
+    }
+    List<ProviderAdapter> adapters = new ArrayList<>(fallbacks.size());
+    Map<String, String> headers = customHeaders();
+    for (FallbackRoute fallback : fallbacks) {
+      adapters.add(RouteAdapters.build(fallback, transport(), headers));
+    }
+    return adapters;
   }
 
   @Override

@@ -26,7 +26,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class DecisionEngineTest {
@@ -125,6 +127,37 @@ class DecisionEngineTest {
         () -> engine.evaluate(connection(adapter), request(), new DecisionContext(null, false)).join());
     ModuleException cause = assertInstanceOf(ModuleException.class, thrown.getCause());
     assertEquals(JevErrorType.UNAUTHORIZED, cause.getType());
+  }
+
+  @Test
+  void failsOverToFallbackOnOverloadAndRecordsAbandonedRoute() {
+    ProviderAdapter primary = mock(ProviderAdapter.class);
+    when(primary.routeName()).thenReturn("typesafe");
+    when(primary.evaluate(any()))
+        .thenReturn(CompletableFuture.failedFuture(new ProviderHttpException(529, "busy", OptionalLong.empty())));
+    ProviderAdapter fallback = mock(ProviderAdapter.class);
+    when(fallback.routeName()).thenReturn("openrouter");
+    when(fallback.evaluate(any())).thenReturn(CompletableFuture.completedFuture(choiceResponse(null, 10)));
+
+    DecisionOutcome outcome = engine
+        .evaluate(new JevConnection(primary, List.of(fallback)), request(), new DecisionContext(null, false)).join();
+
+    assertEquals("openrouter", outcome.attributes().getProvider());
+    assertEquals(List.of("typesafe"), outcome.attributes().getFailedOverFrom());
+  }
+
+  @Test
+  void doesNotFailOverOnUnauthorized() {
+    ProviderAdapter primary = mock(ProviderAdapter.class);
+    when(primary.evaluate(any()))
+        .thenReturn(CompletableFuture.failedFuture(new ProviderHttpException(401, "no", OptionalLong.empty())));
+    ProviderAdapter fallback = mock(ProviderAdapter.class);
+
+    CompletionException thrown = assertThrows(CompletionException.class, () -> engine
+        .evaluate(new JevConnection(primary, List.of(fallback)), request(), new DecisionContext(null, false)).join());
+    ModuleException cause = assertInstanceOf(ModuleException.class, thrown.getCause());
+    assertEquals(JevErrorType.UNAUTHORIZED, cause.getType());
+    verifyNoInteractions(fallback);
   }
 
   @Test

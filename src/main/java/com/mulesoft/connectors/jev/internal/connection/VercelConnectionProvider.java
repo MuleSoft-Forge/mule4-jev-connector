@@ -15,35 +15,36 @@ import com.mulesoft.connectors.jev.internal.provider.RequestIdExtractor;
 import com.mulesoft.connectors.jev.internal.provider.SystemOneAdapter;
 
 /**
- * The TypeSafe direct route: it speaks the canonical {@code systemOne} contract, reports token usage and supports model
- * listing. Cost is estimated from tokens, since the direct API does not report a per-call price.
+ * The Vercel AI Gateway route: it fronts the same {@code systemOne} contract, reports a per-call price as a string in
+ * {@code provider_metadata.gateway.cost}, and exposes its trace id as {@code provider_metadata.gateway.generationId}.
+ * Authentication is an AI Gateway key or an OIDC token.
  */
-@Alias("typesafe")
-@DisplayName("TypeSafe")
-public class TypeSafeConnectionProvider extends AbstractJevConnectionProvider {
+@Alias("vercel")
+@DisplayName("Vercel AI Gateway")
+public class VercelConnectionProvider extends AbstractJevConnectionProvider {
 
   @Parameter
   @Password
   @Placement(order = 1)
-  @Summary("TypeSafe API key, sent as a Bearer token.")
+  @Summary("Vercel AI Gateway key or OIDC token, sent as a Bearer credential.")
   private String apiKey;
 
   @Parameter
-  @Optional(defaultValue = "https://api.typesafe.ai")
+  @Optional(defaultValue = RouteDefaults.VERCEL_MODEL)
   @Placement(order = 2)
-  @Summary("Base URL of the TypeSafe API.")
-  private String baseUrl;
-
-  @Parameter
-  @Optional
-  @Placement(order = 3)
   @Summary("Default model used when an operation does not specify one.")
   private String model;
 
+  @Parameter
+  @Optional(defaultValue = RouteDefaults.VERCEL_BASE_URL)
+  @Placement(order = 3)
+  @Summary("Base URL of the Vercel AI Gateway.")
+  private String baseUrl;
+
   @Override
   public JevConnection connect() {
-    SystemOneAdapter adapter = new SystemOneAdapter("typesafe", baseUrl, model, Capabilities.full(true), apiKey,
-        customHeaders(), CostExtractor.NONE, RequestIdExtractor.header("x-typesafe-request-id"), transport());
+    SystemOneAdapter adapter = new SystemOneAdapter("vercel", baseUrl, model, Capabilities.full(true), apiKey,
+        customHeaders(), CostExtractor.VERCEL, RequestIdExtractor.VERCEL_GENERATION_ID, transport());
     return new JevConnection(adapter, fallbackAdapters());
   }
 

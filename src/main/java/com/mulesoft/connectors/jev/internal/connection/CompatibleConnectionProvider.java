@@ -11,9 +11,8 @@ import org.mule.sdk.api.connectivity.ConnectionValidationResult;
 
 import com.mulesoft.connectors.jev.internal.provider.Capabilities;
 import com.mulesoft.connectors.jev.internal.provider.CostExtractor;
+import com.mulesoft.connectors.jev.internal.provider.RequestIdExtractor;
 import com.mulesoft.connectors.jev.internal.provider.SystemOneAdapter;
-
-import java.util.List;
 
 /**
  * A generic {@code systemOne}-compatible gateway: point it at any endpoint that implements the canonical contract. The
@@ -51,8 +50,8 @@ public class CompatibleConnectionProvider extends AbstractJevConnectionProvider 
   @Override
   public JevConnection connect() {
     SystemOneAdapter adapter = new SystemOneAdapter("compatible", baseUrl, model, Capabilities.full(supportsModelList),
-        apiKey, customHeaders(), CostExtractor.NONE, "x-request-id", transport());
-    return new JevConnection(adapter, List.of());
+        apiKey, customHeaders(), CostExtractor.NONE, RequestIdExtractor.header("x-typesafe-request-id"), transport());
+    return new JevConnection(adapter, fallbackAdapters());
   }
 
   @Override

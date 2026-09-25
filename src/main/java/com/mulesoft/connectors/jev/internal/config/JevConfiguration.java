@@ -8,9 +8,12 @@ import org.mule.sdk.api.annotation.param.Parameter;
 import org.mule.sdk.api.annotation.param.display.Placement;
 import org.mule.sdk.api.annotation.param.display.Summary;
 
+import com.mulesoft.connectors.jev.internal.connection.CloudflareConnectionProvider;
 import com.mulesoft.connectors.jev.internal.connection.CompatibleConnectionProvider;
 import com.mulesoft.connectors.jev.internal.connection.MockConnectionProvider;
+import com.mulesoft.connectors.jev.internal.connection.OpenRouterConnectionProvider;
 import com.mulesoft.connectors.jev.internal.connection.TypeSafeConnectionProvider;
+import com.mulesoft.connectors.jev.internal.connection.VercelConnectionProvider;
 import com.mulesoft.connectors.jev.internal.operation.DecisionOperations;
 import com.mulesoft.connectors.jev.internal.operation.UtilityOperations;
 
@@ -25,7 +28,8 @@ import java.math.BigDecimal;
  * and policy operations and the cache / budget / stats object stores.
  */
 @Configuration(name = "config")
-@ConnectionProviders({TypeSafeConnectionProvider.class, CompatibleConnectionProvider.class,
+@ConnectionProviders({TypeSafeConnectionProvider.class, OpenRouterConnectionProvider.class,
+    VercelConnectionProvider.class, CloudflareConnectionProvider.class, CompatibleConnectionProvider.class,
     MockConnectionProvider.class})
 @Operations({DecisionOperations.class, UtilityOperations.class})
 public class JevConfiguration {

@@ -65,6 +65,11 @@ public class MockAdapter implements ProviderAdapter {
     return CompletableFuture.completedFuture(response);
   }
 
+  @Override
+  public CompletableFuture<List<String>> listModels() {
+    return CompletableFuture.completedFuture(List.of("mock", "mock-latest"));
+  }
+
   private ObjectNode answerFor(JsonNode question) {
     String type = question.path("type").asText("noul");
     switch (type) {

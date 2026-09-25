@@ -16,6 +16,8 @@ import com.mulesoft.connectors.jev.internal.util.Json;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -26,8 +28,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * Drives a single decision: it calls the adapter without blocking, retries transient failures on a scheduler (never a
- * sleeping I/O thread), then enriches the answers, resolves cost and assembles the out-of-band attributes. Failover
- * across fallback adapters is layered on in a later milestone; this milestone evaluates the primary adapter only.
+ * sleeping I/O thread), then enriches the answers, resolves cost and assembles the out-of-band attributes. When the
+ * primary route exhausts its retries with a connectivity-class error, the engine fails over to the next configured
+ * fallback, in order, recording the abandoned routes in {@code attributes.failedOverFrom}. Validation and authorization
+ * failures are terminal and never trigger failover.
  */
 public final class DecisionEngine {
 
@@ -41,16 +45,41 @@ public final class DecisionEngine {
     this.delayScheduler = delayScheduler;
   }
 
-  /** Evaluates the request against the connection's primary adapter. */
+  /** Evaluates the request against the primary route, failing over to the fallbacks on connectivity-class errors. */
   public CompletableFuture<DecisionOutcome> evaluate(JevConnection connection, DecisionRequest request,
       DecisionContext context) {
-    ProviderAdapter adapter = connection.primary();
-    long startNanos = System.nanoTime();
+    List<ProviderAdapter> route = new ArrayList<>();
+    route.add(connection.primary());
+    route.addAll(connection.fallbacks());
+    return runRoute(route, 0, request, context, System.nanoTime(), new ArrayList<>());
+  }
+
+  private CompletableFuture<DecisionOutcome> runRoute(List<ProviderAdapter> route, int index, DecisionRequest request,
+      DecisionContext context, long startNanos, List<String> failedOverFrom) {
+    ProviderAdapter adapter = route.get(index);
     AtomicInteger attempts = new AtomicInteger(0);
     return attempt(adapter, request, 1, attempts).thenApply(response -> {
       long latencyMs = (System.nanoTime() - startNanos) / 1_000_000L;
-      return assemble(adapter, request, context, response, attempts.get(), latencyMs);
+      return assemble(adapter, request, context, response, attempts.get(), latencyMs, failedOverFrom);
+    }).exceptionallyCompose(error -> {
+      Throwable cause = unwrap(error);
+      if (index + 1 < route.size() && isFailoverable(cause)) {
+        List<String> abandoned = new ArrayList<>(failedOverFrom);
+        abandoned.add(adapter.routeName());
+        return runRoute(route, index + 1, request, context, startNanos, abandoned);
+      }
+      return CompletableFuture.failedFuture(cause);
     });
+  }
+
+  /** Only connectivity-class terminal errors fail over; validation and authorization errors are raised as-is. */
+  private static boolean isFailoverable(Throwable cause) {
+    if (!(cause instanceof ModuleException)) {
+      return false;
+    }
+    Object type = ((ModuleException) cause).getType();
+    return type == JevErrorType.CONNECTIVITY || type == JevErrorType.RATE_LIMITED || type == JevErrorType.OVERLOADED
+        || type == JevErrorType.TIMEOUT;
   }
 
   private CompletableFuture<DecisionResponse> attempt(ProviderAdapter adapter, DecisionRequest request, int attemptNo,
@@ -108,7 +137,7 @@ public final class DecisionEngine {
   }
 
   private DecisionOutcome assemble(ProviderAdapter adapter, DecisionRequest request, DecisionContext context,
-      DecisionResponse response, int attempts, long latencyMs) {
+      DecisionResponse response, int attempts, long latencyMs, List<String> failedOverFrom) {
     ObjectNode answers = response.answers();
     DerivedComputer.enrich(answers, request.noMatchOptions());
 
@@ -129,7 +158,7 @@ public final class DecisionEngine {
     DecisionAttributes attributes = DecisionAttributes.builder().provider(adapter.routeName())
         .requestedModel(response.requestedModel()).model(response.model())
         .usage(new TokenUsage(response.inputTokens(), response.outputTokens())).estimatedCostUsd(cost)
-        .costSource(costSource).latencyMs(latencyMs).attempts(attempts).cacheHit(false)
+        .costSource(costSource).latencyMs(latencyMs).attempts(attempts).failedOverFrom(failedOverFrom).cacheHit(false)
         .questionSetId(request.questionSetId()).questionSetVersion(request.questionSetVersion())
         .stateHash(request.state() == null ? null : Json.sha256(request.state()))
         .providerRequestId(response.providerRequestId())

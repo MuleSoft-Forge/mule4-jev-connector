@@ -3,6 +3,7 @@ package com.mulesoft.connectors.jev.internal.provider;
 import com.mulesoft.connectors.jev.internal.domain.DecisionRequest;
 import com.mulesoft.connectors.jev.internal.domain.DecisionResponse;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -31,4 +32,13 @@ public interface ProviderAdapter {
    * @return a future of the parsed response.
    */
   CompletableFuture<DecisionResponse> evaluate(DecisionRequest request);
+
+  /**
+   * Lists the model ids this route can serve. Routes without a model-list endpoint complete the future exceptionally
+   * with a {@code JEV:UNSUPPORTED_BY_PROVIDER} {@code ModuleException}; callers should consult
+   * {@link Capabilities#isSupportsModelList()} first.
+   *
+   * @return a future of the route's model ids.
+   */
+  CompletableFuture<List<String>> listModels();
 }
