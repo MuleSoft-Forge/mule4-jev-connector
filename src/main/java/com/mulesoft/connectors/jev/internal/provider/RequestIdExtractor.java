@@ -20,8 +20,8 @@ public interface RequestIdExtractor {
       body) -> textOrNull(body.path("provider_metadata").path("gateway").path("generationId"));
 
   /**
-   * OpenRouter exposes the generation id as header {@code x-generation-id}, and repeats it as body
-   * {@code id}. Prefer the header; fall back to the body field when the header is absent.
+   * OpenRouter exposes the generation id as header {@code x-generation-id}, and repeats it as body {@code id}. Prefer
+   * the header; fall back to the body field when the header is absent.
    */
   RequestIdExtractor OPENROUTER = (response, body) -> {
     String headerId = response.header("x-generation-id");

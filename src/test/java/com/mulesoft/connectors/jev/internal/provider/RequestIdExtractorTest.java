@@ -40,8 +40,7 @@ class RequestIdExtractorTest {
 
   @Test
   void typeSafeHeaderExtractorReadsTypesafeRequestId() {
-    RawHttpResponse response = new RawHttpResponse(200, "{}",
-        Map.of("x-typesafe-request-id", "req_abc"));
+    RawHttpResponse response = new RawHttpResponse(200, "{}", Map.of("x-typesafe-request-id", "req_abc"));
 
     assertEquals("req_abc", RequestIdExtractor.header("x-typesafe-request-id").extract(response, Json.object()));
   }
