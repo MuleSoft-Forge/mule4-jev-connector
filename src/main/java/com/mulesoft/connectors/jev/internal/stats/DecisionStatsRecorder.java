@@ -119,8 +119,8 @@ public final class DecisionStatsRecorder {
     String value = null;
     if (answer.hasNonNull("choice")) {
       value = answer.get("choice").asText();
-    } else if (answer.hasNonNull("score")) {
-      value = answer.get("score").asText();
+    } else if (derived != null && derived.hasNonNull("level")) {
+      value = derived.get("level").asText();
     }
     if (value != null) {
       window.distribution.computeIfAbsent(questionId, k -> new java.util.HashMap<>()).merge(value, 1L, Long::sum);

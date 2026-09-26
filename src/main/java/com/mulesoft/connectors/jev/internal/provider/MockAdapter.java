@@ -17,8 +17,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  * In-process adapter used by the {@code mock} route. It never leaves the runtime and needs no credentials, so tests and
  * the demo app can run without keys. It synthesises a valid, type-appropriate answer for every question in the request:
  * Noul answers report {@code defaultNoul}; Choice and Score answers concentrate probability on the first option/level.
- * The shapes match the canonical wire contract so downstream derivation and DataSense behave exactly as with a real
- * route.
+ * It reads options and levels only from TypeSafe's {@code criteria} field and answers in TypeSafe's shapes (Noul
+ * {@code noul}; Score {@code score}, 0-based {@code legend}/{@code probabilities}), so downstream derivation and
+ * DataSense behave exactly as with a real route and a question the real API would reject yields no options here.
  */
 public class MockAdapter implements ProviderAdapter {
 
@@ -85,13 +86,16 @@ public class MockAdapter implements ProviderAdapter {
   private ObjectNode noulAnswer() {
     ObjectNode answer = Json.object();
     answer.put("type", "noul");
-    answer.put("answer", defaultNoul >= 0.5);
-    answer.put("probability", defaultNoul);
+    answer.put("noul", defaultNoul);
     return answer;
   }
 
   private ObjectNode choiceAnswer(JsonNode question) {
-    List<String> options = optionKeys(question);
+    List<String> options = new ArrayList<>();
+    JsonNode criteria = question.get("criteria");
+    if (criteria != null && criteria.isObject()) {
+      criteria.fieldNames().forEachRemaining(options::add);
+    }
     ObjectNode answer = Json.object();
     answer.put("type", "choice");
     ObjectNode probabilities = answer.putObject("probabilities");
@@ -99,80 +103,49 @@ public class MockAdapter implements ProviderAdapter {
       answer.putNull("choice");
       return answer;
     }
-    distribute(probabilities, options);
+    double[] weights = distribution(options.size());
+    for (int i = 0; i < options.size(); i++) {
+      probabilities.put(options.get(i), weights[i]);
+    }
     answer.put("choice", options.get(0));
+    answer.put("confidence", weights[0]);
     return answer;
   }
 
   private ObjectNode scoreAnswer(JsonNode question) {
-    List<String> levels = levelKeys(question);
+    JsonNode criteria = question.get("criteria");
+    int levels = criteria != null && criteria.isArray() ? criteria.size() : 0;
     ObjectNode answer = Json.object();
     answer.put("type", "score");
-    JsonNode legend = question.get("legend");
-    if (legend != null && legend.isObject()) {
-      answer.set("legend", legend.deepCopy());
-    }
+    ObjectNode legend = answer.putObject("legend");
     ObjectNode probabilities = answer.putObject("probabilities");
-    if (levels.isEmpty()) {
+    if (levels == 0) {
       answer.putNull("score");
       return answer;
     }
-    distribute(probabilities, levels);
-    answer.put("score", levels.get(0));
+    double[] weights = distribution(levels);
+    double expected = 0.0;
+    for (int i = 0; i < levels; i++) {
+      legend.put(Integer.toString(i), criteria.get(i).asText());
+      probabilities.put(Integer.toString(i), weights[i]);
+      expected += i * weights[i];
+    }
+    answer.put("score", expected);
+    answer.put("confidence", weights[0]);
     return answer;
   }
 
-  /** Concentrates 0.6 on the first key, splitting the remainder evenly across the rest. */
-  private static void distribute(ObjectNode probabilities, List<String> keys) {
-    if (keys.size() == 1) {
-      probabilities.put(keys.get(0), 1.0);
-      return;
+  /** Concentrates 0.6 on the first of {@code size} slots, splitting the remainder evenly across the rest. */
+  private static double[] distribution(int size) {
+    double[] weights = new double[size];
+    if (size == 1) {
+      weights[0] = 1.0;
+      return weights;
     }
-    double head = 0.6;
-    double tail = (1.0 - head) / (keys.size() - 1);
-    for (int i = 0; i < keys.size(); i++) {
-      probabilities.put(keys.get(i), i == 0 ? head : tail);
+    double tail = 0.4 / (size - 1);
+    for (int i = 0; i < size; i++) {
+      weights[i] = i == 0 ? 0.6 : tail;
     }
-  }
-
-  private static List<String> optionKeys(JsonNode question) {
-    List<String> keys = new ArrayList<>();
-    JsonNode options = question.get("options");
-    if (options == null) {
-      options = question.get("criteria");
-    }
-    if (options != null && options.isObject()) {
-      options.fieldNames().forEachRemaining(keys::add);
-    } else if (options != null && options.isArray()) {
-      for (JsonNode option : options) {
-        if (option.isTextual()) {
-          keys.add(option.asText());
-        } else if (option.isObject()) {
-          JsonNode id = option.has("id") ? option.get("id") : option.get("key");
-          keys.add(id != null ? id.asText() : option.path("label").asText());
-        }
-      }
-    }
-    return keys;
-  }
-
-  private static List<String> levelKeys(JsonNode question) {
-    List<String> keys = new ArrayList<>();
-    JsonNode legend = question.get("legend");
-    if (legend != null && legend.isObject()) {
-      legend.fieldNames().forEachRemaining(keys::add);
-      return keys;
-    }
-    JsonNode levels = question.get("levels");
-    if (levels != null && levels.isNumber()) {
-      for (int i = 1; i <= levels.asInt(); i++) {
-        keys.add(Integer.toString(i));
-      }
-    } else if (levels != null && levels.isArray()) {
-      for (JsonNode level : levels) {
-        keys.add(level.asText());
-      }
-    }
-    return keys;
+    return weights;
   }
 }

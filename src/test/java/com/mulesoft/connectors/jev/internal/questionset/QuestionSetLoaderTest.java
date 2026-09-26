@@ -4,7 +4,10 @@ import org.mule.sdk.api.exception.ModuleException;
 
 import com.mulesoft.connectors.jev.internal.error.JevErrorType;
 import com.mulesoft.connectors.jev.internal.util.Json;
+import com.mulesoft.connectors.jev.internal.validation.QuestionSetValidator;
+import com.mulesoft.connectors.jev.internal.validation.ValidationResult;
 
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
@@ -26,6 +29,13 @@ class QuestionSetLoaderTest {
     assertTrue(set.questions().has("urgent"));
     assertNotNull(set.policy());
     assertTrue(set.policy().has("team"));
+  }
+
+  @Test
+  void bundledQuestionSetSpeaksTypeSafeShape() {
+    QuestionSet set = QuestionSetLoader.load("questions/", "ticket-triage");
+    ValidationResult result = new QuestionSetValidator().validate(set.questions(), Map.of("team", "other"));
+    assertTrue(result.isValid(), "ticket-triage.json must pass validation: " + result.getErrors());
   }
 
   @Test

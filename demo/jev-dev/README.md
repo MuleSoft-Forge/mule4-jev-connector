@@ -145,7 +145,7 @@ All are `GET` on `http://localhost:8081`.
   `ticket-triage` set (team + urgency + sentiment) about a sample support ticket.
 
 - **`/ask` → [Decide] Ask Yes/No.** A single **Noul** question; returns just that answer
-  (`payload.noul`, `payload.probability`). *Purpose:* a quick boolean judgement with a
+  (`payload.noul`, the probability of "yes"). *Purpose:* a quick boolean judgement with a
   probability. Here it asks whether the ticket is urgent.
 
 - **`/choose` → [Decide] Choose.** A single **Choice** over a fixed option set; returns the

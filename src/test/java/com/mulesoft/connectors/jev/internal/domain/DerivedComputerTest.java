@@ -51,7 +51,7 @@ class DerivedComputerTest {
 
   @Test
   void leavesNoulUntouched() {
-    ObjectNode answers = (ObjectNode) Json.read("{\"q\":{\"type\":\"noul\",\"answer\":true,\"probability\":0.8}}");
+    ObjectNode answers = (ObjectNode) Json.read("{\"q\":{\"type\":\"noul\",\"noul\":0.8}}");
     DerivedComputer.enrich(answers, Map.of());
     assertFalse(answers.get("q").has("derived"));
   }

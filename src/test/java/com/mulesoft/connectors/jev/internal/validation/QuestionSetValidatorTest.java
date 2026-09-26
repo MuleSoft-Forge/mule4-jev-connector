@@ -66,4 +66,24 @@ class QuestionSetValidatorTest {
     assertTrue(result.isValid());
     assertTrue(result.getWarnings().stream().anyMatch(w -> w.contains("fewer than")));
   }
+
+  @Test
+  void rejectsFieldNamesTypeSafeDoesNotAccept() {
+    JsonNode questions = Json
+        .read("{" + "\"c\":{\"type\":\"choice\",\"instructions\":\"pick\",\"options\":{\"a\":\"A\"}},"
+            + "\"s\":{\"type\":\"score\",\"instructions\":\"rate\",\"legend\":{\"1\":\"low\",\"2\":\"high\"}},"
+            + "\"n\":{\"type\":\"noul\",\"instructions\":\"yes?\",\"criteriaTrue\":\"Y\",\"criteriaFalse\":\"N\"}}");
+    ValidationResult result = validator.validate(questions, Map.of());
+    assertFalse(result.isValid());
+    for (String field : new String[]{"'options'", "'legend'", "'criteriaTrue'", "'criteriaFalse'"}) {
+      assertTrue(result.getErrors().stream().anyMatch(e -> e.contains(field)), field + " in " + result.getErrors());
+    }
+  }
+
+  @Test
+  void acceptsNoulWithTypeSafeCriteria() {
+    JsonNode questions = Json.read("{\"q\":{\"type\":\"noul\",\"instructions\":\"Is it fraud?\","
+        + "\"criteria\":{\"true\":\"Card used abroad\",\"false\":\"Normal spend\"}}}");
+    assertTrue(validator.validate(questions, Map.of()).isValid());
+  }
 }

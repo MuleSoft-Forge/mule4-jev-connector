@@ -167,8 +167,8 @@ http://www.mulesoft.org/schema/mule/jev http://www.mulesoft.org/schema/mule/jev/
       probabilities: { billing: 0.62, technical: 0.2, account: 0.13, other: 0.05 },
       confidence: 0.8
     },
-    urgent: { "type": "noul", answer: true, probability: 0.82 },
-    sentiment: { "type": "score", score: "2", derived: { level: "2" }, confidence: 0.7 }
+    urgent: { "type": "noul", noul: 0.82 },
+    sentiment: { "type": "score", score: 1.2, derived: { level: 1 }, confidence: 0.7 }
   }
 }]' doc:name="Sample decision" />
 		<logger level="INFO" category="jev.demo" message="#['[apply-policy] ▶ decision=' ++ write(payload, 'application/json')]" />

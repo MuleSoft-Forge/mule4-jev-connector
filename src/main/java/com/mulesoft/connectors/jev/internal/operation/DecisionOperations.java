@@ -110,8 +110,8 @@ public class DecisionOperations {
   }
 
   /**
-   * Asks a single yes/no (Noul) question and returns just that answer, so a flow reads {@code payload.noul} and
-   * {@code payload.probability} directly.
+   * Asks a single yes/no (Noul) question and returns just that answer, so a flow reads {@code payload.noul} (the
+   * probability of "yes") directly.
    */
   @Alias("ask-noul")
   @DisplayName("[Decide] Ask Yes/No")
@@ -124,11 +124,14 @@ public class DecisionOperations {
     ObjectNode question = Json.object();
     question.put("type", "noul");
     question.put("instructions", instructions);
-    if (criteriaTrue != null) {
-      question.put("criteriaTrue", criteriaTrue);
-    }
-    if (criteriaFalse != null) {
-      question.put("criteriaFalse", criteriaFalse);
+    if (criteriaTrue != null || criteriaFalse != null) {
+      ObjectNode criteria = question.putObject("criteria");
+      if (criteriaTrue != null) {
+        criteria.put("true", criteriaTrue);
+      }
+      if (criteriaFalse != null) {
+        criteria.put("false", criteriaFalse);
+      }
     }
     runShortcut(config, connection, state, question, new HashMap<>(), options, callback);
   }
@@ -152,7 +155,7 @@ public class DecisionOperations {
     ObjectNode question = Json.object();
     question.put("type", "choice");
     question.put("instructions", instructions);
-    ObjectNode optionsNode = question.putObject("options");
+    ObjectNode optionsNode = question.putObject("criteria");
     for (Map.Entry<String, String> entry : chooseOptions.entrySet()) {
       optionsNode.put(entry.getKey(), entry.getValue());
     }
@@ -185,7 +188,7 @@ public class DecisionOperations {
     ObjectNode question = Json.object();
     question.put("type", "score");
     question.put("instructions", instructions);
-    ArrayNode levelsNode = question.putArray("levels");
+    ArrayNode levelsNode = question.putArray("criteria");
     for (String level : levels) {
       levelsNode.add(level);
     }
@@ -348,7 +351,7 @@ public class DecisionOperations {
     ObjectNode question = Json.object();
     question.put("type", "choice");
     question.put("instructions", instructions);
-    ObjectNode optionsNode = question.putObject("options");
+    ObjectNode optionsNode = question.putObject("criteria");
     for (JsonNode candidate : candidates) {
       JsonNode idNode = candidate.get(idField);
       String id = idNode != null && !idNode.isNull() ? idNode.asText() : null;

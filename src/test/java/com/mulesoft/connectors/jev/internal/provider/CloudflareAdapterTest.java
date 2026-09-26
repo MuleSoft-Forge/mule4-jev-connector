@@ -52,7 +52,7 @@ class CloudflareAdapterTest {
 
   @Test
   void nestsBodyUnderInputPostsToModelPathAndUnwrapsEnvelope() {
-    String wrapped = "{\"result\":{\"model\":\"cf\",\"answers\":{\"q\":{\"type\":\"noul\",\"answer\":true}}},"
+    String wrapped = "{\"result\":{\"model\":\"cf\",\"answers\":{\"q\":{\"type\":\"noul\",\"noul\":0.9}}},"
         + "\"success\":true,\"errors\":[]}";
     ArgumentCaptor<String> url = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<byte[]> body = ArgumentCaptor.forClass(byte[].class);
@@ -62,7 +62,7 @@ class CloudflareAdapterTest {
     DecisionResponse response = adapter().evaluate(request()).join();
 
     assertEquals("cf", response.model());
-    assertTrue(response.answers().get("q").get("answer").asBoolean());
+    assertEquals(0.9, response.answers().get("q").get("noul").asDouble(), 1e-9);
     assertEquals(BASE + "/typesafe/jev", url.getValue());
 
     JsonNode sent = Json.read(new String(body.getValue(), StandardCharsets.UTF_8));
@@ -73,7 +73,7 @@ class CloudflareAdapterTest {
 
   @Test
   void acceptsBareResponseWithoutEnvelope() {
-    String bare = "{\"model\":\"cf\",\"answers\":{\"q\":{\"type\":\"noul\",\"answer\":false}}}";
+    String bare = "{\"model\":\"cf\",\"answers\":{\"q\":{\"type\":\"noul\",\"noul\":0.1}}}";
     when(transport.send(any(), eq(BASE + "/typesafe/jev"), anyMap(), any()))
         .thenReturn(CompletableFuture.completedFuture(new RawHttpResponse(200, bare, Map.of())));
 

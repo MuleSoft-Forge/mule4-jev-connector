@@ -169,8 +169,8 @@ public class BatchOperations {
    * Keeps the items for which a yes/no question clears a probability threshold. Items are packed several to a call (one
    * Noul question per item, {@code chunkSize} items per chunk) so filtering a long list costs a handful of calls rather
    * than one per item. The payload is {@code {kept, dropped, scores}} — {@code kept}/{@code dropped} are the original
-   * items partitioned by the threshold, {@code scores} carries each item's index, boolean answer and probability.
-   * {@link BatchAttributes} carry the totals.
+   * items partitioned by the threshold, {@code scores} carries each item's index, {@code noul} (the probability of
+   * "yes") and whether it was kept. {@link BatchAttributes} carry the totals.
    */
   @Alias("filter")
   @DisplayName("[Select] Filter")
@@ -280,13 +280,9 @@ public class BatchOperations {
       ObjectNode answers = result.outcome.payload();
       for (int i = bounds[0]; i < bounds[1]; i++) {
         JsonNode answer = answers.path("item" + (i - bounds[0]));
-        JsonNode booleanNode = answer.has("answer") ? answer.get("answer") : answer.get("noul");
-        boolean noul = booleanNode != null && booleanNode.asBoolean(false);
-        double probability = answer.hasNonNull("probability")
-            ? answer.get("probability").asDouble()
-            : (noul ? 1.0 : 0.0);
-        boolean keep = probability >= threshold;
-        scores.addObject().put("index", i).put("noul", noul).put("probability", probability).put("kept", keep);
+        double noul = answer.path("noul").asDouble(0.0);
+        boolean keep = noul >= threshold;
+        scores.addObject().put("index", i).put("noul", noul).put("kept", keep);
         if (keep) {
           kept.add(states.get(i).deepCopy());
         } else {
