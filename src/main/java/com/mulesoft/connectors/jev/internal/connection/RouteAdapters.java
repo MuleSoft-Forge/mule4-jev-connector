@@ -27,7 +27,7 @@ public final class RouteAdapters {
       case OPENROUTER :
         return new SystemOneAdapter("openrouter", orDefault(route.getBaseUrl(), RouteDefaults.OPENROUTER_BASE_URL),
             orDefault(model, RouteDefaults.OPENROUTER_MODEL), Capabilities.full(true), route.getApiKey(), customHeaders,
-            CostExtractor.OPENROUTER, RequestIdExtractor.header("x-request-id"), transport);
+            CostExtractor.OPENROUTER, RequestIdExtractor.OPENROUTER, transport);
       case VERCEL :
         return new SystemOneAdapter("vercel", orDefault(route.getBaseUrl(), RouteDefaults.VERCEL_BASE_URL),
             orDefault(model, RouteDefaults.VERCEL_MODEL), Capabilities.full(true), route.getApiKey(), customHeaders,

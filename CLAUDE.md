@@ -4,6 +4,18 @@ Guidance for Claude Code (and any AI assistant) working in this repo. Read
 this before making changes. For the product roadmap see [`PLAN.md`](PLAN.md);
 for what has shipped see [`CHANGELOG.md`](CHANGELOG.md).
 
+## Guiding principle
+
+**Think: Smart if-statements.**
+
+Jev is TypeSafe's model. It turns unstructured state into a value an `if` can
+read. The flow owns the if: the threshold, the route, the side effect. This
+connector exists to make that if possible in Mule.
+
+Before adding or changing a feature, name the if it serves. A change that hides
+the if inside the connector needs a reason the flow author can see. Routes,
+cache, budget, and sources keep the call alive. They are not the product.
+
 ## What this is
 
 The **Jev Connector** — a Mule 4 Java SDK connector. Jev is a *decision* model
@@ -17,9 +29,10 @@ Choice / Score) it returns one typed **answer** per question.
 - Java 17 · Apache-2.0 · min Mule Runtime **4.9.0**
 - Repo: `github.com/MuleSoft-Forge/mule4-jev-connector`
 
-## Current status (2026-09-25)
+## Current status (2026-09-26)
 
 Milestones **M0–M4** are complete, merged to `develop` and `main`, and pushed.
+**M5** is in progress on `feature/*` branches off `develop` (first release `1.0.0`).
 
 | Milestone | Scope | State |
 | --- | --- | --- |
@@ -28,7 +41,7 @@ Milestones **M0–M4** are complete, merged to `develop` and `main`, and pushed.
 | M2 | Five routes + ordered failover, `list-models` | ✅ |
 | M3 | decide/policy/utility ops, question sets, DataSense, MUnit suite | ✅ |
 | M4 | `evaluate-batch`, `filter`, cache, budget guard, stats, 3 sources | ✅ |
-| M5 | Release: keyless-mock demo variant, docs/Javadoc polish, live smoke tests, Maven Central + Exchange publish profiles | ⏳ next |
+| M5 | Release: keyless-mock demo variant, docs/Javadoc polish, live smoke tests, Maven Central + Exchange publish profiles | ⏳ in progress |
 
 ## Build & quality gates
 
