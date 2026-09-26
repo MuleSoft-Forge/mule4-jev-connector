@@ -5,7 +5,7 @@ for anything the connector encodes about a provider. **Never invent a provider
 field.** When a detail is marked *verify*, confirm it with a live call or an
 official doc and record the result here **before** coding against it.
 
-Last full review of the sources below: **2026-09-25**.
+Last full review of the sources below: **2026-09-26**.
 
 ## Canonical request/response — TypeSafe `systemOne`
 
@@ -31,7 +31,7 @@ Last full review of the sources below: **2026-09-25**.
 | Route | Base URL | Auth | Model id | Deviations | Cost signal |
 | --- | --- | --- | --- | --- | --- |
 | `typesafe` | `https://api.typesafe.ai` | `Bearer` TypeSafe key | `jev-latest`, `jev-1.13.0` | none | tokens only; estimate |
-| `openrouter` | `https://openrouter.ai/api` | `Bearer` OpenRouter key | `~typesafe/jev-latest`, `typesafe/jev-1.13` | alpha Decisions API exists, unused | `usage.cost` (USD) |
+| `openrouter` | `https://openrouter.ai/api` | `Bearer` OpenRouter key | `~typesafe/jev-latest`, `typesafe/jev-1.13` | alpha Decisions API exists, unused; request id is `x-generation-id` (also body `id`) | `usage.cost` (USD) |
 | `vercel` | `https://ai-gateway.vercel.sh/typesafe` | `Bearer` AI Gateway key / OIDC | `typesafe-ai/jev` | adds `provider_metadata.gateway`; errors `{message, error_type}` | `provider_metadata.gateway.cost` (string USD) |
 | `compatible` | configurable | `Bearer` key | configurable | per gateway | estimate |
 | `cloudflare` | `https://api.cloudflare.com/client/v4/accounts/{accountId}/ai/run` | `Bearer` API token | `typesafe/jev` | body wraps `{model, input:{state, questions}}`; no model list | estimate |
@@ -59,7 +59,7 @@ provider-reported cost (OpenRouter, Vercel); otherwise `tokens × configured pri
 | --- | --- | --- | --- |
 | Q2 | Cloudflare live response envelope (bare vs `result`) | M2 | **resolved** — `CloudflareAdapter.unwrap` accepts both; `success:false` or a non-empty `errors` array becomes `JEV:PROVIDER_ERROR` |
 | Q3 | Vercel `confidence` present on Choice/Score | M2 | **resolved by contract** — `confidence` is passed through unchanged; when a route omits it the field is `null` (no live Vercel key available to confirm presence; behaviour is correct either way) |
-| Q5 | OpenRouter / Cloudflare request-id header | M2 | **resolved (best-effort, pending live confirmation)** — OpenRouter reads header `x-request-id`; Cloudflare exposes none (`RequestIdExtractor.NONE`). Revisit if a live call reveals a different header |
+| Q5 | OpenRouter / Cloudflare request-id header | M2 / M5 | **resolved (OpenRouter live, 2026-09-26)** — OpenRouter returns header `x-generation-id` and the same value as body `id` (e.g. `gen-dec-…`). The connector reads header first, then body `id` (`RequestIdExtractor.OPENROUTER`). It does **not** use `x-request-id` (absent on the live call). Cloudflare still exposes none (`RequestIdExtractor.NONE`). TypeSafe direct remains `x-typesafe-request-id`. |
 | Q8 | Value provider can read app question-set files at design time | M3 | open |
 | Q9 | Computed `min.mule.version` with sdk-api HTTP client | M0 | see below |
 
@@ -68,3 +68,20 @@ provider-reported cost (OpenRouter, Vercel); otherwise `tokens × configured pri
 `min.mule.version` is pinned to **4.9.0**. If the extension build computes a higher
 per-component minimum, the API that raised it is recorded here and the owner is
 consulted before raising the floor. _(No override recorded yet.)_
+
+## Live smoke notes (M5)
+
+Recorded against billed keys held outside git. Do not commit keys.
+
+### OpenRouter — 2026-09-26
+
+- `POST https://openrouter.ai/api/v1/systemone` with model `~typesafe/jev-latest`
+- State: duplicate-charge support ticket; questions: Choice `team`, Noul `refund`, Score `urgent`
+- **200.** Reported model `typesafe/jev-1.13-20260917`. Answers matched the TypeSafe shape
+  (`choice` / `noul` / `score` + `probabilities` / `confidence` on Choice and Score; Noul has
+  no separate confidence).
+- `usage.cost` present (USD). Headers: `x-generation-id`, `x-provider-name: TypeSafe`. Body
+  also carried `id` and `provider`.
+- TypeSafe direct `GET /v1/models` was **200** the same day; `POST /v1/systemone` returned
+  **402** (`billing_error` / no credits) despite console credit balance — OpenRouter used as
+  the live decision smoke until that clears.

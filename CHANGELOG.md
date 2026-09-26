@@ -5,7 +5,15 @@ All notable changes to the Jev Connector are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- **OpenRouter request id (M5).** Live OpenRouter `systemOne` responses carry the generation id
+  as header `x-generation-id` (and body `id`), not `x-request-id`. The OpenRouter route now
+  records that id on `attributes.providerRequestId`. Confirmed against a live three-question
+  call on 2026-09-26; see [`docs/provider-contracts.md`](docs/provider-contracts.md).
+
 ### Added
+- **Guiding principle.** `CLAUDE.md` leads with **Think: Smart if-statements** — Jev returns a
+  value; the flow owns the `if`.
 - **M4 — Scale & governance.** The `evaluate-batch` and `filter` scale operations, fanned out
   behind a non-blocking concurrency limit with per-item de-duplication, budgeting, caching and
   stats. Governance foundation: a decision cache, a cluster-wide `BudgetGuard` (call and
