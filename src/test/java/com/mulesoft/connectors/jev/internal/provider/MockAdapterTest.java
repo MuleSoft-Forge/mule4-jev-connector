@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MockAdapterTest {
@@ -21,12 +22,12 @@ class MockAdapterTest {
   }
 
   @Test
-  void synthesisesNoulAnswer() {
+  void synthesisesNoulAnswerInTypeSafeShape() {
     DecisionResponse response = evaluate("{\"q\":{\"type\":\"noul\",\"instructions\":\"?\"}}", 0.8);
     ObjectNode answer = (ObjectNode) response.answers().get("q");
     assertEquals("noul", answer.get("type").asText());
-    assertTrue(answer.get("answer").asBoolean());
-    assertEquals(0.8, answer.get("probability").asDouble(), 1e-9);
+    assertEquals(0.8, answer.get("noul").asDouble(), 1e-9);
+    assertFalse(answer.has("probability"));
   }
 
   @Test
@@ -36,16 +37,27 @@ class MockAdapterTest {
     assertEquals("choice", answer.get("type").asText());
     assertEquals("a", answer.get("choice").asText());
     assertEquals(0.6, answer.get("probabilities").get("a").asDouble(), 1e-9);
+    assertTrue(answer.has("confidence"));
   }
 
   @Test
-  void synthesisesScoreAnswerFromLegend() {
-    DecisionResponse response = evaluate(
-        "{\"q\":{\"type\":\"score\",\"legend\":{\"1\":\"low\",\"2\":\"mid\",\"3\":\"high\"}}}", 0.5);
+  void synthesisesScoreAnswerWithZeroBasedLegend() {
+    DecisionResponse response = evaluate("{\"q\":{\"type\":\"score\",\"criteria\":[\"low\",\"mid\",\"high\"]}}", 0.5);
     ObjectNode answer = (ObjectNode) response.answers().get("q");
     assertEquals("score", answer.get("type").asText());
-    assertEquals("1", answer.get("score").asText());
-    assertTrue(answer.has("legend"));
+    assertEquals("low", answer.get("legend").get("0").asText());
+    assertEquals("high", answer.get("legend").get("2").asText());
+    assertEquals(0.6, answer.get("probabilities").get("0").asDouble(), 1e-9);
+    assertEquals(0.6, answer.get("score").asDouble(), 1e-9);
+  }
+
+  @Test
+  void ignoresFieldNamesTypeSafeRejects() {
+    DecisionResponse response = evaluate(
+        "{\"c\":{\"type\":\"choice\",\"options\":{\"a\":\"A\"}},\"s\":{\"type\":\"score\",\"levels\":[\"x\",\"y\"]}}",
+        0.5);
+    assertTrue(response.answers().get("c").get("choice").isNull());
+    assertTrue(response.answers().get("s").get("score").isNull());
   }
 
   @Test

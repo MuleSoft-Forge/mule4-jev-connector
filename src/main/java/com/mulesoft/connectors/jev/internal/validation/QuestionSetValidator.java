@@ -15,8 +15,9 @@ import com.fasterxml.jackson.databind.JsonNode;
  *
  * <p>
  * Hard limits (§3): non-empty {@code questions}; each has {@code type} and {@code instructions}; Choice ≤ 255 options;
- * Score 2–10 levels. Warnings (§8.7): Choice with no no-match option, duplicate or empty option descriptions, Score
- * with fewer than 3 levels, Choice with more than 20 options.
+ * Score 2–10 levels; options, levels and yes/no criteria live under TypeSafe's {@code criteria} field. Warnings (§8.7):
+ * Choice with no no-match option, duplicate or empty option descriptions, Score with fewer than 3 levels, Choice with
+ * more than 20 options.
  */
 public final class QuestionSetValidator {
 
@@ -27,6 +28,10 @@ public final class QuestionSetValidator {
   public static final int RECOMMENDED_MIN_SCORE_LEVELS = 3;
 
   private static final Set<String> TYPES = Set.of("noul", "choice", "score");
+
+  /** Field names TypeSafe does not accept on a question; each belongs under {@code criteria}. */
+  private static final List<String> NON_TYPESAFE_FIELDS = List.of("options", "levels", "legend", "criteriaTrue",
+      "criteriaFalse");
 
   /**
    * Validates the {@code questions} map. {@code noMatchOptions} maps a question id to a declared no-match option key so
@@ -66,6 +71,12 @@ public final class QuestionSetValidator {
     if (instructions == null || instructions.isNull()
         || (instructions.isTextual() && instructions.asText().isBlank())) {
       errors.add(id + ": instructions are required");
+    }
+
+    for (String field : NON_TYPESAFE_FIELDS) {
+      if (q.has(field)) {
+        errors.add(id + ": '" + field + "' is not a TypeSafe question field; put it under 'criteria'");
+      }
     }
 
     if ("choice".equals(type)) {

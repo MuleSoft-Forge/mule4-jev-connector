@@ -130,15 +130,15 @@ public final class PolicyEvaluator {
     if (rule == null || !rule.isObject()) {
       return outcome;
     }
-    double probability = answer.path("probability").asDouble(0.0);
+    double noul = answer.path("noul").asDouble(0.0);
     double acceptAbove = rule.path("acceptAbove").asDouble(Double.NaN);
     double rejectBelow = rule.path("rejectBelow").asDouble(Double.NaN);
-    if (!Double.isNaN(rejectBelow) && probability < rejectBelow) {
+    if (!Double.isNaN(rejectBelow) && noul < rejectBelow) {
       outcome.action = Action.REJECT;
-      outcome.reasons.add(id + ": probability " + round(probability) + " < " + round(rejectBelow));
-    } else if (!Double.isNaN(acceptAbove) && probability < acceptAbove) {
+      outcome.reasons.add(id + ": noul " + round(noul) + " < " + round(rejectBelow));
+    } else if (!Double.isNaN(acceptAbove) && noul < acceptAbove) {
       outcome.action = Action.REVIEW;
-      outcome.reasons.add(id + ": probability " + round(probability) + " < " + round(acceptAbove));
+      outcome.reasons.add(id + ": noul " + round(noul) + " < " + round(acceptAbove));
     }
     return outcome;
   }

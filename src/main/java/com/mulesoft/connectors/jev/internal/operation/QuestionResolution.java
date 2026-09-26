@@ -7,6 +7,8 @@ import com.mulesoft.connectors.jev.internal.error.JevErrorType;
 import com.mulesoft.connectors.jev.internal.questionset.QuestionSet;
 import com.mulesoft.connectors.jev.internal.questionset.QuestionSetLoader;
 import com.mulesoft.connectors.jev.internal.util.Json;
+import com.mulesoft.connectors.jev.internal.validation.QuestionSetValidator;
+import com.mulesoft.connectors.jev.internal.validation.ValidationResult;
 
 import java.io.InputStream;
 import java.util.HashMap;
@@ -19,8 +21,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 /**
  * Resolves the question map, its no-match annotations and its identity from either inline {@code questions} content or
  * a referenced classpath question-set file, and strips the connector-side {@code noMatchOption} annotations so they
- * drive {@code derived.isNoMatch} without ever being sent to a provider. Shared by {@code evaluate} and
- * {@code evaluate-batch} so both apply exactly the same rules.
+ * drive {@code derived.isNoMatch} without ever being sent to a provider. The result is checked against the local
+ * validator's hard limits, so a malformed set fails as {@code JEV:INVALID_QUESTION_SET} before any billed call. Shared
+ * by {@code evaluate} and {@code evaluate-batch} so both apply exactly the same rules.
  */
 final class QuestionResolution {
 
@@ -71,6 +74,11 @@ final class QuestionResolution {
           JevErrorType.INVALID_QUESTION_SET);
     }
     Resolved resolved = clean((ObjectNode) questionsNode);
+    ValidationResult validation = new QuestionSetValidator().validate(resolved.questions, resolved.noMatchOptions);
+    if (!validation.isValid()) {
+      throw new ModuleException("Invalid questions: " + String.join("; ", validation.getErrors()),
+          JevErrorType.INVALID_QUESTION_SET);
+    }
     resolved.questionSetId = id;
     resolved.questionSetVersion = version;
     return resolved;

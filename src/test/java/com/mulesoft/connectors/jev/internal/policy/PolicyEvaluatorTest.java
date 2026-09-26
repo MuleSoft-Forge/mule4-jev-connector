@@ -64,7 +64,7 @@ class PolicyEvaluatorTest {
   @Test
   void mostCautiousOutcomeWinsAcrossQuestions() {
     ObjectNode decision = choice(0.7, 0.5, false);
-    decision.set("urgent", Json.read("{\"type\":\"noul\",\"probability\":0.1}").deepCopy());
+    decision.set("urgent", Json.read("{\"type\":\"noul\",\"noul\":0.1}").deepCopy());
     JsonNode policy = Json.read(
         "{\"team\":{\"minProbability\":0.55,\"minMargin\":0.15},\"urgent\":{\"acceptAbove\":0.7,\"rejectBelow\":0.3}}");
     ObjectNode result = PolicyEvaluator.evaluate(decision, policy);
@@ -82,13 +82,13 @@ class PolicyEvaluatorTest {
 
   @Test
   void singleAnswerIsWrappedAndJudged() {
-    JsonNode decision = Json.read("{\"type\":\"noul\",\"probability\":0.1}");
+    JsonNode decision = Json.read("{\"type\":\"noul\",\"noul\":0.1}");
     JsonNode policy = Json.read("{\"result\":{\"acceptAbove\":0.7,\"rejectBelow\":0.3}}");
     assertEquals("REJECT", PolicyEvaluator.evaluate(decision, policy).get("action").asText());
   }
 
-  private static ObjectNode noul(double probability) {
-    return (ObjectNode) Json.read("{\"urgent\":{\"type\":\"noul\",\"probability\":" + probability + "}}");
+  private static ObjectNode noul(double value) {
+    return (ObjectNode) Json.read("{\"urgent\":{\"type\":\"noul\",\"noul\":" + value + "}}");
   }
 
   private static ObjectNode score(int level) {

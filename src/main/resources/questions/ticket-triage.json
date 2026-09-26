@@ -6,7 +6,7 @@
     "team": {
       "type": "choice",
       "instructions": "Which team should own this ticket, based on its subject and body?",
-      "options": {
+      "criteria": {
         "billing": "Payments, invoices, refunds and subscription changes.",
         "technical": "Product errors, outages, integration and API problems.",
         "account": "Login, access, roles and account administration.",
@@ -17,19 +17,15 @@
     "urgent": {
       "type": "noul",
       "instructions": "Is this ticket time-sensitive and in need of a fast response?",
-      "criteriaTrue": "Mentions an outage, a deadline, lost revenue, or an angry customer.",
-      "criteriaFalse": "A routine question or a feature request with no time pressure."
+      "criteria": {
+        "true": "Mentions an outage, a deadline, lost revenue, or an angry customer.",
+        "false": "A routine question or a feature request with no time pressure."
+      }
     },
     "sentiment": {
       "type": "score",
       "instructions": "How positive is the customer's tone?",
-      "legend": {
-        "1": "Very negative",
-        "2": "Negative",
-        "3": "Neutral",
-        "4": "Positive",
-        "5": "Very positive"
-      }
+      "criteria": ["Very negative", "Negative", "Neutral", "Positive", "Very positive"]
     }
   },
   "policy": {
@@ -43,8 +39,8 @@
       "rejectBelow": 0.3
     },
     "sentiment": {
-      "acceptLevels": ["3", "4", "5"],
-      "reviewLevels": ["2"]
+      "acceptLevels": ["2", "3", "4"],
+      "reviewLevels": ["1"]
     }
   }
 }

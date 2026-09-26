@@ -50,7 +50,7 @@ class SystemOneAdapterTest {
 
   @Test
   void parsesSuccessfulResponse() {
-    String body = "{\"model\":\"m-1\",\"answers\":{\"q\":{\"type\":\"noul\",\"answer\":true,\"probability\":0.9}},"
+    String body = "{\"model\":\"m-1\",\"answers\":{\"q\":{\"type\":\"noul\",\"noul\":0.9}},"
         + "\"usage\":{\"input_tokens\":12,\"output_tokens\":3}}";
     when(transport.send(any(HttpConstants.Method.class), eq("https://api.typesafe.ai/v1/systemone"), anyMap(), any()))
         .thenReturn(CompletableFuture.completedFuture(new RawHttpResponse(200, body, Map.of("x-request-id", "req-9"))));
@@ -62,7 +62,7 @@ class SystemOneAdapterTest {
     assertEquals(12, response.inputTokens());
     assertEquals(3, response.outputTokens());
     assertEquals("req-9", response.providerRequestId());
-    assertEquals(true, response.answers().get("q").get("answer").asBoolean());
+    assertEquals(0.9, response.answers().get("q").get("noul").asDouble(), 1e-9);
     assertNull(response.providerReportedCost());
   }
 

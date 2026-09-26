@@ -5,6 +5,21 @@ All notable changes to the Jev Connector are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- **Question and answer shapes now match TypeSafe.** `ask-noul`, `choose`, `score` and
+  `select-candidate` sent `criteriaTrue`/`criteriaFalse`, `options` and `levels`, which
+  TypeSafe rejects (422 direct, 400 via OpenRouter) or silently ignores; they now send
+  `criteria`. The bundled `ticket-triage.json` uses `criteria` too, and its sentiment policy
+  levels are 0-based (`acceptLevels ["2","3","4"]`, `reviewLevels ["1"]`) to match the
+  0-based `legend` TypeSafe returns. `apply-policy` and `filter` read the Noul answer's
+  `noul` value (they read a `probability` field TypeSafe never returns, so every yes/no
+  judged as 0); `filter`'s `scores` entries are now `{index, noul, kept}`. Stats bucket
+  Score answers by `derived.level` rather than the continuous `score`.
+- `evaluate` and `evaluate-batch` validate questions locally before calling a route, so a
+  malformed set, including `options`/`levels`/`legend`/`criteriaTrue`/`criteriaFalse`, fails
+  as `JEV:INVALID_QUESTION_SET` without a billed call. The `mock` route reads only `criteria`
+  and answers in TypeSafe's shapes, so keyless tests catch contract drift.
+
 ### Added
 - **M4 — Scale & governance.** The `evaluate-batch` and `filter` scale operations, fanned out
   behind a non-blocking concurrency limit with per-item de-duplication, budgeting, caching and
